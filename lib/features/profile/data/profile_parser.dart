@@ -293,6 +293,12 @@ class ProfileParser with InfraLogger {
     return headers;
   }
 
+  /// 2001-09-09. Panels that report a relative duration (days, hours) produce
+  /// values far below this, and anything above the upper bound overflows the
+  /// millisecond arithmetic below.
+  static const minimumExpireTimestamp = 1_000_000_000;
+  static const maximumExpireTimestamp = 253_402_300_799;
+
   /// Parse a `subscription-userinfo` header, e.g.
   /// `upload=0; download=1024; total=10240; expire=1704054600`.
   ///
@@ -312,7 +318,7 @@ class ProfileParser with InfraLogger {
     }
     if (map case {"upload": final upload?, "download": final download?, "total": final total, "expire": var expire}) {
       final total1 = (total == null || total == 0) ? infiniteTrafficThreshold + 1 : total;
-      expire = (expire == null || expire == 0) ? infiniteTimeThreshold : expire;
+      expire = (expire == null || !_isPlausibleExpire(expire)) ? infiniteTimeThreshold : expire;
       return SubscriptionInfo(
         upload: upload,
         download: download,
@@ -321,6 +327,22 @@ class ProfileParser with InfraLogger {
       );
     }
     return null;
+  }
+
+  /// The convention defines `expire` as a UNIX timestamp in seconds, but panels
+  /// in the wild also send `0` (never), a negative sentinel, or a duration in
+  /// days/hours instead of an absolute instant.
+  ///
+  /// A days value fed to `fromMillisecondsSinceEpoch` lands in 1970, so a
+  /// perfectly valid subscription rendered as "Expired" (issue #2330). Anything
+  /// that cannot be an absolute instant is treated as "never" instead.
+  static bool _isPlausibleExpire(int seconds) {
+    if (seconds <= 0) return false;
+    // Below the smallest timestamp any deployment can carry: a relative value,
+    // not an instant.
+    if (seconds < minimumExpireTimestamp) return false;
+    // `seconds * 1000` has to stay inside what DateTime can represent.
+    return seconds <= maximumExpireTimestamp;
   }
 
   /// Extract a filename from a `content-disposition` header.
@@ -432,6 +454,61 @@ class ProfileParser with InfraLogger {
           local: (lp) => lp.copyWith(name: name, lastUpdate: DateTime.now()),
         );
       }, ProfileFailure.unexpected);
+
+  /// Rewrites the outbound-level `tls_fragment` block older builds wrote into
+  /// the key the core actually accepts.
+  ///
+  /// The JSON editor used to offer `tls_fragment` as a per-outbound object, and
+  /// configs saved through it still carry it. The core decodes outbounds
+  /// strictly, so one such key fails the whole config with
+  /// `json: unknown field "tls_fragment"` — the profile stops connecting and
+  /// the app shows that as a start failure, with no way to fix it from the UI.
+  ///
+  /// The current schema has `tls.fragment: true` instead (verified against
+  /// hiddify-core: the boolean is accepted, the object is not). The block only
+  /// says "fragment TLS", so an enabled one becomes that flag and a disabled
+  /// one is simply dropped.
+  ///
+  /// Returns whether the file changed; a file that is not a config, or has no
+  /// such key, is left untouched and its bytes are not rewritten.
+  static bool repairLegacyFragmentKeys(File file) {
+    if (!file.existsSync()) return false;
+    try {
+      final text = file.readAsStringSync();
+      // A link list or a YAML config: nothing to repair, and rewriting it would
+      // change formatting for no reason.
+      if (!text.trimLeft().startsWith('{')) return false;
+
+      final decoded = jsonDecode(text);
+      if (decoded is! Map<String, dynamic>) return false;
+      final outbounds = decoded['outbounds'];
+      if (outbounds is! List) return false;
+
+      var changed = false;
+      for (final outbound in outbounds) {
+        if (outbound is! Map<String, dynamic>) continue;
+        final legacy = outbound.remove('tls_fragment');
+        if (legacy == null) continue;
+        changed = true;
+        final enabled = legacy is Map ? legacy['enabled'] == true : legacy == true;
+        if (!enabled) continue;
+        final tls = outbound['tls'];
+        if (tls is Map<String, dynamic>) {
+          tls['fragment'] = true;
+        } else {
+          outbound['tls'] = <String, dynamic>{'fragment': true};
+        }
+      }
+      if (!changed) return false;
+
+      file.writeAsStringSync(jsonEncode(decoded));
+      return true;
+    } catch (_) {
+      // A file this cannot read is left as it is: the core will report it, and
+      // the app already shows that message.
+      return false;
+    }
+  }
 
   static String protocol(String content) {
     if (content.contains("[Interface]")) {

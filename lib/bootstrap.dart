@@ -52,6 +52,9 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   await _init("directories", () => container.read(appDirectoriesProvider.future));
   // phase 2 — the folders exist, so app.log can be opened
   logAddFile(container.read(logPathResolverProvider).appFile().path);
+  // The engine appends to its own log for the life of the install and never
+  // rotates it. It is not running yet, which is the only time it can be cut.
+  container.read(logPathResolverProvider).trimCoreLog();
 
   final appInfo = await _init("app info", () => container.read(appInfoProvider.future));
   await _init("preferences", () => container.read(sharedPreferencesProvider.future));
@@ -103,6 +106,13 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   Logger.bootstrap.info(appInfo.format());
 
   await _init("profile repository", () => container.read(profileRepositoryProvider.future));
+  // Configs saved by an older build can carry keys the current core refuses;
+  // fix them before anything tries to start one.
+  await _safeInit(
+    "profile repair",
+    () => container.read(profileRepositoryProvider).requireValue.repairProfiles().run(),
+    timeout: 3000,
+  );
 
   await _init("translations", () => container.read(translationsProvider.future));
 

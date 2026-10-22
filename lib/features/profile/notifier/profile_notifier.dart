@@ -69,7 +69,11 @@ class AddProfileNotifier extends _$AddProfileNotifier with AppLogger {
       // final markAsActive = activeProfile == null || ref.read(Preferences.markNewProfileActive);
       final TaskEither<ProfileFailure, Unit> task;
       if (LinkParser.parse(rawInput) case (final rs)?) {
-        loggy.debug("adding profile, url: [${rs.url}]");
+        // The host only. A subscription URL carries its token in the path, and
+        // this line is written at debug — the level a user turns on to chase a
+        // problem, then shares the log. The same rule the inner-link downloader
+        // already follows.
+        loggy.debug("adding profile, host: [${Uri.tryParse(rs.url)?.host}]");
         task = _profilesRepo.upsertRemote(
           rs.url,
           userOverride: rs.name.isNotEmpty ? UserOverride(name: rs.name) : null,
@@ -194,6 +198,18 @@ class UpdateProfileNotifier extends _$UpdateProfileNotifier with AppLogger {
     // the profile list re-sorting that happens right after an update.
     _resetTimer?.cancel();
     _resetTimer = Timer(const Duration(seconds: 2), () => state = const AsyncData(null));
+  }
+
+  /// Clears a loading state left behind by an update that never finished.
+  ///
+  /// [updateProfile] refuses to start while the previous call is still loading,
+  /// so one hung download would otherwise block this profile's updates for the
+  /// rest of the session. The bulk run calls this when its own timeout fires.
+  void resetStuck() {
+    if (!state.isLoading) return;
+    loggy.warning("update never finished, clearing its state");
+    _resetTimer?.cancel();
+    state = const AsyncData(null);
   }
 }
 

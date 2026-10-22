@@ -466,6 +466,57 @@ void main() {
         },
       );
     });
+
+    // Issue #2330: a panel sent the remaining duration in days where the
+    // convention asks for an absolute UNIX timestamp. 7 seconds after the epoch
+    // is 1970, so the profile rendered as "Expired" the moment it was added.
+    test("a non-instant expire is treated as unlimited, not as expired", () {
+      expectRemote(
+        parseRemoteWithHeaders({
+          "profile-title": "p",
+          "subscription-userinfo": "upload=0;download=0;total=5368709120;expire=7",
+        }),
+        (rp) {
+          expect(rp.subInfo, isNotNull);
+          expect(rp.subInfo!.isExpired, isFalse);
+          expect(
+            rp.subInfo!.expire,
+            equals(DateTime.fromMillisecondsSinceEpoch(ProfileParser.infiniteTimeThreshold * 1000)),
+          );
+        },
+      );
+    });
+
+    test("a negative expire is treated as unlimited", () {
+      expectRemote(
+        parseRemoteWithHeaders({
+          "profile-title": "p",
+          "subscription-userinfo": "upload=0;download=0;total=1000;expire=-1",
+        }),
+        (rp) => expect(rp.subInfo!.isExpired, isFalse),
+      );
+    });
+
+    test("an expire past what a DateTime can hold is treated as unlimited", () {
+      // 9999999999999 would overflow the millisecond conversion and throw.
+      expectRemote(
+        parseRemoteWithHeaders({
+          "profile-title": "p",
+          "subscription-userinfo": "upload=0;download=0;total=1000;expire=9999999999999",
+        }),
+        (rp) => expect(rp.subInfo!.isExpired, isFalse),
+      );
+    });
+
+    test("a real past timestamp still reads as expired", () {
+      expectRemote(
+        parseRemoteWithHeaders({
+          "profile-title": "p",
+          "subscription-userinfo": "upload=0;download=0;total=1000;expire=1000000000",
+        }),
+        (rp) => expect(rp.subInfo!.isExpired, isTrue),
+      );
+    });
   });
 
   group("profile-update-interval robustness (#11)", () {

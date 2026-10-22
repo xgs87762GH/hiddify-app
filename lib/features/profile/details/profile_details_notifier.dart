@@ -57,7 +57,12 @@ class ProfileDetailsNotifier extends _$ProfileDetailsNotifier with AppLogger {
       // ignore: avoid_dynamic_calls
       final endpoints = jsonObject['endpoints'] as List? ?? [];
       profContent = '{"outbounds": ${json.encode(outbounds)},"endpoints":${json.encode(endpoints)} }';
-      loggy.info(profContent);
+      // The outbounds carry the profile's credentials — uuid, password, psk,
+      // the subscription's own server and path. This line wrote all of them to
+      // the log at info, which is the level the logs page opens on and the one
+      // the file keeps, so opening a profile's details once put the user's keys
+      // into a file they may well share. The count is what the line was for.
+      loggy.info("profile [$id] has ${outbounds.length} outbound(s)");
     } catch (e, st) {
       loggy.error('Error parsing profile-content JSON', e, st);
       // rethrow;

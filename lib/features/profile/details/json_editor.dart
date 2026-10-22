@@ -220,7 +220,11 @@ const Map<String, Map<String, Map<String, dynamic>>> exampleSchemaValues = {
   },
   "config.outbounds.tls": {
     "fragment": {
-      "tls_fragment": {"enabled": true, "size": "1-10", "sleep": "1-10"},
+      // The core reads `tls.fragment` as a boolean. The object this used to
+      // insert (`tls_fragment`) is rejected outright with
+      // `json: unknown field "tls_fragment"`, which fails the whole config, so
+      // the editor must not offer it any more.
+      "fragment": true,
     },
     "utls": {
       "utls": {"enabled": true, "fingerprint": "chrome"},
@@ -258,7 +262,7 @@ const Map<String, Map<String, Map<String, dynamic>>> exampleSchemaValues = {
         "alpn": [],
         "min_version": "",
         "max_version": "",
-        "tls_fragment": {"enabled": false, "size": "1-10", "sleep": "1-10"},
+        "fragment": false,
       },
     },
     "websocket": {

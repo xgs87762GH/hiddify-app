@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -33,6 +35,7 @@ abstract interface class ProfileRepository {
   TaskEither<ProfileFailure, Unit> addLocal(String content, {UserOverride? userOverride});
   TaskEither<ProfileFailure, Unit> offlineUpdate(ProfileEntity nProfile, String nContent);
   TaskEither<ProfileFailure, Unit> validateConfig(String path, String tempPath, String? profileOverride, bool debug);
+  TaskEither<ProfileFailure, Unit> repairProfiles();
   TaskEither<ProfileFailure, String> generateConfig(String id);
   TaskEither<ProfileFailure, String> getRawConfig(String id);
 }
@@ -285,6 +288,27 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
                   (_) => _singbox.validateConfigByPath(path, tempPath, debug).mapLeft(ProfileFailure.invalidConfig),
                 ),
           );
+
+  /// Rewrites the keys older builds wrote that the core now refuses.
+  ///
+  /// Runs on every profile at startup, so a config saved by an older build
+  /// starts working again without the user deleting and re-adding it.
+  @override
+  TaskEither<ProfileFailure, Unit> repairProfiles() {
+    return TaskEither.tryCatch(() async {
+      final dir = _profilePathResolver.directory;
+      if (!dir.existsSync()) return unit;
+      var repaired = 0;
+      for (final entity in dir.listSync()) {
+        if (entity is! File) continue;
+        // The temp files belong to an add that is running or was abandoned.
+        if (entity.path.endsWith('.tmp.json')) continue;
+        if (ProfileParser.repairLegacyFragmentKeys(entity)) repaired++;
+      }
+      if (repaired > 0) loggy.info("repaired $repaired profile(s) with legacy keys");
+      return unit;
+    }, ProfileFailure.unexpected);
+  }
 
   @override
   TaskEither<ProfileFailure, String> generateConfig(String id) => TaskEither.fromEither(
