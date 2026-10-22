@@ -156,9 +156,10 @@ void _toConsole(LogRecord r) {
 ///
 /// The file exists to survive a crash, and everything quieter than an error is
 /// already somewhere better: the page reads the in-memory ring, and the engine
-/// keeps its own complete log in data/box.log. Narrowing it to errors is also
-/// what lets the file stay unbounded — it grows by the handful, not by the
-/// thousand.
+/// keeps its own complete log in data/box.log. Narrowing it to errors is what
+/// keeps it small; the sink still caps it at 1 MiB and rotates, because a core
+/// that fails on every reconnect can produce errors faster than anyone reads
+/// them.
 void _toFile(LogRecord r) {
   if (r.level < Level.SEVERE) return;
   writeLogLine(formatRecord(r));

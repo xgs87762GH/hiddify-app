@@ -58,4 +58,32 @@ void main() {
     writeLogLine('dropped');
     expect(file.existsSync(), isFalse);
   });
+
+  test('a file past the cap is moved aside instead of growing forever', () {
+    openLogFile(file.path);
+    // One line big enough to cross the cap on its own.
+    writeLogLine('x' * (1024 * 1024 + 1));
+
+    expect(file.existsSync(), isTrue);
+    expect(file.lengthSync(), lessThan(1024 * 1024));
+
+    final rotated = File('${file.path}.1');
+    expect(rotated.existsSync(), isTrue);
+    expect(rotated.lengthSync(), greaterThan(1024 * 1024));
+
+    // The sink keeps writing to the same path, now a fresh file.
+    writeLogLine('after rotation');
+    expect(file.readAsStringSync(), 'after rotation\n');
+  });
+
+  test('a rotated file is replaced, not piled up', () {
+    openLogFile(file.path);
+    writeLogLine('first' * (300 * 1024));
+    writeLogLine('second' * (300 * 1024));
+
+    final rotated = File('${file.path}.1');
+    expect(rotated.existsSync(), isTrue);
+    expect(rotated.readAsStringSync(), contains('second'));
+    expect(rotated.readAsStringSync(), isNot(contains('first')));
+  });
 }
