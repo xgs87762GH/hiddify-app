@@ -10,7 +10,7 @@ import 'package:hiddify/utils/custom_loggers.dart';
 class DioHttpClient with InfraLogger {
   final Map<String, Dio> _dio = {};
   DioHttpClient({required Duration timeout, required this.userAgent, required bool debug}) {
-    for (final mode in ["proxy", "direct", "both"]) {
+    for (final mode in ["proxy", "both"]) {
       _dio[mode] = Dio(
         BaseOptions(
           connectTimeout: timeout,
@@ -35,8 +35,6 @@ class DioHttpClient with InfraLogger {
           client.findProxy = (url) {
             if (mode == "proxy") {
               return "PROXY localhost:$port";
-            } else if (mode == "direct") {
-              return "DIRECT";
             } else {
               return "PROXY localhost:$port; DIRECT";
             }
@@ -54,29 +52,6 @@ class DioHttpClient with InfraLogger {
   int port = 0;
 
   String userAgent;
-  // bool isPortOpen(String host, int port, {Duration timeout = const Duration(milliseconds: 200)}) async{
-  //   try {
-  //     Socket.connect(host, port, timeout: timeout).then((socket) {
-  //       socket.destroy();
-  //     });
-  //     return true;
-  //   } on SocketException catch (_) {
-  //     return false;
-  //   } catch (_) {
-  //     return false;
-  //   }
-  // }
-  Future<bool> isPortOpen(String host, int port, {Duration timeout = const Duration(seconds: 5)}) async {
-    try {
-      final socket = await Socket.connect(host, port, timeout: timeout);
-      await socket.close();
-      return true;
-    } on SocketException catch (_) {
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
 
   void setProxyPort(int port) {
     this.port = port;
@@ -90,13 +65,8 @@ class DioHttpClient with InfraLogger {
     ({String username, String password})? credentials,
     bool proxyOnly = false,
     ResponseType? responseType,
-  }) async {
-    final mode = proxyOnly
-        ? "proxy"
-        : await isPortOpen("127.0.0.1", port)
-        ? "both"
-        : "direct";
-    final dio = _dio[mode]!;
+  }) {
+    final dio = _dio[proxyOnly ? "proxy" : "both"]!;
 
     return dio.get<T>(
       url,
@@ -112,13 +82,8 @@ class DioHttpClient with InfraLogger {
     String? userAgent,
     ({String username, String password})? credentials,
     bool proxyOnly = false,
-  }) async {
-    final mode = proxyOnly
-        ? "proxy"
-        : await isPortOpen("127.0.0.1", port)
-        ? "both"
-        : "direct";
-    final dio = _dio[mode]!;
+  }) {
+    final dio = _dio[proxyOnly ? "proxy" : "both"]!;
     return dio.download(
       url,
       path,
