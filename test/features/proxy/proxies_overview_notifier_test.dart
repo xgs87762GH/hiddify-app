@@ -96,6 +96,21 @@ void main() {
     expect(container.read(proxiesOverviewNotifierProvider).requireValue!.selected, 'a');
   });
 
+  testWidgets('a successful selection shows on the spot, before the core answers', (tester) async {
+    await open(tester);
+    await stream(tester, [proxy('a', 100), proxy('b', 200)]);
+    // The state the page listens to. A change that Riverpod does not see is a
+    // tap that does nothing until the next list arrives from the core.
+    var updates = 0;
+    container.listen(proxiesOverviewNotifierProvider, (_, _) => updates++);
+    await notifier().changeProxy('select', 'b');
+    expect(updates, greaterThan(0));
+    final state = container.read(proxiesOverviewNotifierProvider).requireValue!;
+    expect(state.selected, 'b');
+    expect(state.items.firstWhere((e) => e.tag == 'b').isSelected, isTrue);
+    expect(state.items.firstWhere((e) => e.tag == 'a').isSelected, isFalse);
+  });
+
   testWidgets('the picked proxy stays in its row while the rest re-sorts', (tester) async {
     await open(tester);
     expect(await stream(tester, [proxy('a', 100), proxy('b', 200), proxy('c', 300)]), ['a', 'b', 'c']);

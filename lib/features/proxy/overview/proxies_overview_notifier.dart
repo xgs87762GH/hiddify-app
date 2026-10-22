@@ -12,6 +12,7 @@ import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
 import 'package:hiddify/features/proxy/data/proxy_data_providers.dart';
 import 'package:hiddify/features/proxy/model/proxy_failure.dart';
 import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore.pb.dart';
+import 'package:hiddify/hiddifycore/hiddify_core_service.dart';
 import 'package:hiddify/hiddifycore/init_signal.dart';
 
 import 'package:hiddify/utils/riverpod_utils.dart';
@@ -105,7 +106,15 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
         // is logged, the last list stays on screen, and the stream is opened again below.
         .where(
           (event) => event.fold((err) {
-            loggy.warning("error receiving proxies", err);
+            // The stream is closed on every resume, and gRPC reports the dead
+            // channel as a failure. That is not the list failing to load, so it
+            // is not worth a warning; anything else is.
+            final cause = err is ProxyUnexpectedFailure ? err.error : null;
+            if (cause != null && HiddifyCoreService.isConnectionTerminated(cause)) {
+              loggy.debug("proxies stream ended with the channel: $cause");
+            } else {
+              loggy.warning("error receiving proxies", err);
+            }
             return false;
           }, (_) => true),
         )
@@ -190,9 +199,13 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
 
         final ai = a.urlTestDelay;
         final bi = b.urlTestDelay;
-        if (ai == 0 && bi == 0) return -1;
-        if (ai == 0 && bi > 0) return 1;
-        if (ai > 0 && bi == 0) return -1;
+        // A ping of 0 means "not measured yet", so those go last. Returning
+        // -1 when both are 0 broke the comparator's contract (a < b and b < a
+        // at once) and made the order of the untested proxies arbitrary — the
+        // whole list shuffled on every event until the first test finished.
+        if (ai == 0 && bi == 0) return a.tag.compareTo(b.tag);
+        if (ai == 0) return 1;
+        if (bi == 0) return -1;
         return ai.compareTo(bi);
       }),
       ProxiesSort.unsorted => proxies.items,
@@ -259,11 +272,19 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
     if (!selected) return;
     final row = outbounds.items.indexWhere((e) => e.tag == outboundTag);
     if (row != -1) _pinned = (tag: outboundTag, index: row);
-    final newselected = outbounds.items.where((e) => e.tag == outboundTag).firstOrNull;
-    if (newselected != null) {
-      newselected.isSelected = true;
-      outbounds.selected = newselected.tag;
-      state = AsyncValue.data(outbounds);
+    // The old code below is what the new one replaces; it is kept here only in
+    // this comment so the reason is on the page: mutating `outbounds` in place
+    // and handing the same object back to `state` is a no-op, because Riverpod
+    // compares the new state with the previous one and a protobuf message is
+    // equal to itself. The tap then moved the highlight only when the core
+    // happened to send the next list.
+    if (outbounds.items.any((e) => e.tag == outboundTag)) {
+      final updated = outbounds.deepCopy();
+      for (final item in updated.items) {
+        item.isSelected = item.tag == outboundTag;
+      }
+      updated.selected = outboundTag;
+      state = AsyncValue.data(updated);
     }
   }
 
@@ -271,10 +292,10 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
     loggy.debug("testing group: [$groupTag]");
     if (state case AsyncData()) {
       await ref.read(hapticServiceProvider.notifier).lightImpact();
-      await ref.read(proxyRepositoryProvider).urlTest(groupTag).getOrElse((err) {
-        loggy.error("error testing group", err);
-        throw err;
-      }).run();
+      // Thrown from a tap, the error reached no one: the page has no handler
+      // for it and the test simply seemed to do nothing.
+      final result = await ref.read(proxyRepositoryProvider).urlTest(groupTag).run();
+      if (result.isLeft()) loggy.warning("error testing group", result);
     }
   }
 }

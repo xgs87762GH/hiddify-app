@@ -153,13 +153,14 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
 
   Future<void> urlTest(String? groupTag_) async {
     final groupTag = groupTag_ ?? "";
+    // The callback is handed to the throttler, which calls it without awaiting
+    // it, so a throw here used to become an unhandled async error instead of
+    // reaching the caller. The failure is logged and the button does nothing.
     _urlTestThrottler(() async {
       if (state case AsyncData()) {
         await ref.read(hapticServiceProvider.notifier).lightImpact();
-        await ref.read(proxyRepositoryProvider).urlTest(groupTag).getOrElse((err) {
-          loggy.warning("error testing group", err);
-          throw err;
-        }).run();
+        final result = await ref.read(proxyRepositoryProvider).urlTest(groupTag).run();
+        if (result.isLeft()) loggy.warning("error testing group", result);
       }
     });
   }
