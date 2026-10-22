@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
+import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/features/profile/notifier/active_profile_notifier.dart';
 import 'package:hiddify/features/settings/notifier/config_option/config_option_notifier.dart';
 import 'package:hiddify/features/settings/notifier/reset_tunnel/reset_tunnel_notifier.dart';
@@ -139,64 +140,69 @@ class SettingsPage extends HookConsumerWidget {
           const Gap(8),
         ],
       ),
-      body: ListView(
-        children: [
-          // TipCard(message: t.settings.experimentalMsg),
-          SettingsSection(
-            title: t.pages.settings.general.title,
-            icon: Icons.layers_rounded,
-            namedLocation: context.namedLocation('general'),
-          ),
-          if (ref.watch(hasAnyProfileProvider).value ?? false)
-            SettingsSection(
-              title: t.pages.settings.chain.title,
-              icon: Icons.webhook_rounded,
-              subtitle: Text(t.pages.settings.chain.subtitle),
-              namedLocation: context.namedLocation('chainOptions'),
-            ),
-          SettingsSection(
-            title: t.pages.settings.routing.title,
-            icon: Icons.route_rounded,
-            namedLocation: context.namedLocation('routingOptions'),
-          ),
-          SettingsSection(
-            title: t.pages.settings.dns.title,
-            icon: Icons.dns_rounded,
-            namedLocation: context.namedLocation('dnsOptions'),
-          ),
-          SettingsSection(
-            title: t.pages.settings.inbound.title,
-            icon: Icons.input_rounded,
-            namedLocation: context.namedLocation('inboundOptions'),
-          ),
-          SettingsSection(
-            title: t.pages.settings.tlsTricks.title,
-            icon: Icons.content_cut_rounded,
-            namedLocation: context.namedLocation('tlsTricks'),
-          ),
-          if (PlatformUtils.isIOS)
-            Material(
-              child: ListTile(
-                title: Text(t.pages.settings.resetTunnel),
-                leading: const Icon(Icons.autorenew_rounded),
-                onTap: () async {
-                  await ref.read(resetTunnelNotifierProvider.notifier).run();
-                },
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppLayout.maxColumnWidth),
+          child: ListView(
+            children: [
+              // TipCard(message: t.settings.experimentalMsg),
+              SettingsSection(
+                title: t.pages.settings.general.title,
+                icon: Icons.layers_rounded,
+                namedLocation: context.namedLocation('general'),
               ),
-            ),
-          if (Breakpoint(context).isMobile()) ...[
-            SettingsSection(
-              title: t.pages.logs.title,
-              icon: Icons.description_rounded,
-              namedLocation: context.namedLocation('logs'),
-            ),
-            SettingsSection(
-              title: t.pages.about.title,
-              icon: Icons.info_rounded,
-              namedLocation: context.namedLocation('about'),
-            ),
-          ],
-        ],
+              if (ref.watch(hasAnyProfileProvider).value ?? false)
+                SettingsSection(
+                  title: t.pages.settings.chain.title,
+                  icon: Icons.webhook_rounded,
+                  subtitle: Text(t.pages.settings.chain.subtitle),
+                  namedLocation: context.namedLocation('chainOptions'),
+                ),
+              SettingsSection(
+                title: t.pages.settings.routing.title,
+                icon: Icons.route_rounded,
+                namedLocation: context.namedLocation('routingOptions'),
+              ),
+              SettingsSection(
+                title: t.pages.settings.dns.title,
+                icon: Icons.dns_rounded,
+                namedLocation: context.namedLocation('dnsOptions'),
+              ),
+              SettingsSection(
+                title: t.pages.settings.inbound.title,
+                icon: Icons.input_rounded,
+                namedLocation: context.namedLocation('inboundOptions'),
+              ),
+              SettingsSection(
+                title: t.pages.settings.tlsTricks.title,
+                icon: Icons.content_cut_rounded,
+                namedLocation: context.namedLocation('tlsTricks'),
+              ),
+              if (PlatformUtils.isIOS)
+                Material(
+                  child: ListTile(
+                    title: Text(t.pages.settings.resetTunnel),
+                    leading: const Icon(Icons.autorenew_rounded),
+                    onTap: () async {
+                      await ref.read(resetTunnelNotifierProvider.notifier).run();
+                    },
+                  ),
+                ),
+              if (Breakpoint(context).isMobile()) ...[
+                SettingsSection(
+                  title: t.pages.logs.title,
+                  icon: Icons.description_rounded,
+                  namedLocation: context.namedLocation('logs'),
+                ),
+                SettingsSection(
+                  title: t.pages.about.title,
+                  icon: Icons.info_rounded,
+                  namedLocation: context.namedLocation('about'),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

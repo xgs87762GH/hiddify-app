@@ -5,8 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/constants.dart';
 import 'package:hiddify/core/router/adaptive_layout/shell_route_action.dart';
-import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
 import 'package:hiddify/core/router/go_router/routing_config_notifier.dart';
+import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/features/stats/widget/side_bar_stats_overview.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -65,6 +65,10 @@ class MyAdaptiveLayout extends HookConsumerWidget {
     // no callback of ours ever runs. A press that a branch can handle is popped
     // by go router before it reaches here, so this only sees presses at the
     // root of a branch.
+    // The rail keeps its labels only when the window can pay for them: from
+    // 841px an extended rail plus the stats panel left the page about 400px,
+    // which squeezed every list on a laptop screen.
+    final extendedRail = MediaQuery.sizeOf(context).width >= AppLayout.railLabelThreshold;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -100,16 +104,14 @@ class MyAdaptiveLayout extends HookConsumerWidget {
                       FocusScope(
                         node: navScopeNode,
                         child: NavigationRail(
-                          extended: Breakpoint(context).isDesktop(),
+                          extended: extendedRail,
+                          minExtendedWidth: AppLayout.railExtendedWidth,
                           destinations: _navRailDests(_actions(t, showProfilesAction, isMobileBreakpoint)),
                           selectedIndex: navigationShell.currentIndex,
                           onDestinationSelected: (index) => _onTap(context, index),
-                          trailing: Breakpoint(context).isDesktop()
+                          trailing: extendedRail
                               ? const Expanded(
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: SizedBox(width: 220, child: SideBarStatsOverview()),
-                                  ),
+                                  child: Align(alignment: Alignment.bottomCenter, child: SideBarStatsOverview()),
                                 )
                               : null,
                         ),

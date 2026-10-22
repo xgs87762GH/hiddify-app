@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/failures.dart';
+import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/features/proxy/overview/proxies_overview_notifier.dart';
 import 'package:hiddify/features/proxy/widget/proxy_tile.dart';
 import 'package:hiddify/utils/utils.dart';
@@ -41,7 +42,13 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async => await ref.read(proxiesOverviewNotifierProvider.notifier).urlTest("select"),
+        // The group the page is showing, not a hard-coded tag: the core names
+        // it, and a test of a tag that does not exist does nothing at all.
+        onPressed: () async {
+          final tag = proxies.valueOrNull?.tag;
+          if (tag == null || tag.isEmpty) return;
+          await ref.read(proxiesOverviewNotifierProvider.notifier).urlTest(tag);
+        },
         tooltip: t.pages.proxies.testDelay,
         child: const Icon(FluentIcons.flash_24_filled),
       ),
@@ -49,10 +56,12 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
         data: (group) => group != null
             ? LayoutBuilder(
                 builder: (context, constraints) {
-                  final width = constraints.maxWidth;
+                  // The grid is padded on both sides, so the column count has to
+                  // ignore the gutters or the last column overflows.
+                  final width = constraints.maxWidth - AppLayout.gutter * 2;
                   final crossAxisCount = PlatformUtils.isMobile && width < 600 ? 1 : max(1, (width / 268).floor());
                   return GridView.builder(
-                    padding: const EdgeInsets.only(bottom: 86),
+                    padding: const EdgeInsets.fromLTRB(AppLayout.gutter, 8, AppLayout.gutter, 86),
                     itemCount: group.items.length,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,

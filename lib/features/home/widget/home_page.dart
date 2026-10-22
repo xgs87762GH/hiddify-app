@@ -4,7 +4,10 @@ import 'package:gap/gap.dart';
 import 'package:hiddify/core/app_info/app_info_provider.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/router/bottom_sheets/bottom_sheets_notifier.dart';
+import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
+import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/features/home/widget/connection_button.dart';
+import 'package:hiddify/features/profile/model/profile_entity.dart';
 import 'package:hiddify/features/profile/notifier/active_profile_notifier.dart';
 import 'package:hiddify/features/profile/widget/profile_tile.dart';
 import 'package:hiddify/features/proxy/active/active_proxy_card.dart';
@@ -20,46 +23,22 @@ class HomePage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final t = ref.watch(translationsProvider).requireValue;
-    // final hasAnyProfile = ref.watch(hasAnyProfileProvider);
     final activeProfile = ref.watch(activeProfileProvider);
 
     return Scaffold(
       appBar: AppBar(
-        // leading: (RootScaffold.stateKey.currentState?.hasDrawer ?? false) && showDrawerButton(context)
-        //     ? DrawerButton(
-        //         onPressed: () {
-        //           RootScaffold.stateKey.currentState?.openDrawer();
-        //         },
-        //       )
-        //     : null,
+        // The version sits in the actions, not inside the title: a long version
+        // string used to push the app name out of an already narrow bar.
         title: Row(
           children: [
             Assets.images.logo.svg(height: 24),
             const Gap(8),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: t.common.appTitle),
-                  const TextSpan(text: " "),
-                  const WidgetSpan(child: AppVersionLabel(), alignment: PlaceholderAlignment.middle),
-                ],
-              ),
-            ),
+            Flexible(child: Text(t.common.appTitle, maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [
-          // IconButton(
-          //     onPressed: () => const QuickSettingsRoute().push(context),
-          //     icon: const Icon(FluentIcons.options_24_filled),
-          //     material: (context, platform) => MaterialIconButtonData(
-          //           tooltip: t.config.quickSettings,
-          //         )),
-          // IconButton(
-          //     onPressed: () => const AddProfileRoute().push(context),
-          //     icon: const Icon(FluentIcons.add_circle_24_filled),
-          //     material: (context, platform) => MaterialIconButtonData(
-          //           tooltip: t.profile.add.buttonText,
-          //         )),
+          // A phone bar has no room for a version chip; about shows it there.
+          if (!Breakpoint(context).isMobile()) ...[const AppVersionLabel(), const Gap(8)],
           Semantics(
             key: const ValueKey("profile_add_button"),
             label: t.pages.profiles.add,
@@ -71,7 +50,7 @@ class HomePage extends HookConsumerWidget {
           const Gap(8),
         ],
       ),
-      body: Container(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           image: DecorationImage(
             image: const AssetImage('assets/images/world_map.png'), // Replace with your image path
@@ -85,98 +64,156 @@ class HomePage extends HookConsumerWidget {
                   ), // Apply white tint in dark mode
           ),
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 600, // Set the maximum width here
-                ),
-                child: CustomScrollView(
-                  slivers: [
-                    // switch (activeProfile) {
-                    // AsyncData(value: final profile?) =>
-                    MultiSliver(
-                      children: [
-                        // const Gap(100),
-                        switch (activeProfile) {
-                          AsyncData(value: final profile?) => ProfileTile(
-                            profile: profile,
-                            isMain: true,
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          ),
-                          _ => const Text(""),
-                        },
-                        const SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [ConnectionButton(), ActiveProxyDelayIndicator()],
-                                ),
-                              ),
-                              ActiveProxyFooter(),
-                              Gap(32),
-                            ],
-                          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final profile = activeProfile.valueOrNull;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                if (constraints.maxWidth >= AppLayout.twoColumnWidth)
+                  _TwoColumnBody(profile: profile)
+                else
+                  _SingleColumnBody(profile: profile),
+                if (ref.watch(hasAnyProfileProvider).value ?? false) const _QuickSettingsHandle(),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Until the window is wide, the page stays one scrolling column.
+class _SingleColumnBody extends StatelessWidget {
+  const _SingleColumnBody({required this.profile});
+
+  final ProfileEntity? profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppLayout.maxColumnWidth),
+        child: CustomScrollView(
+          slivers: [
+            MultiSliver(
+              children: [
+                if (profile != null)
+                  ProfileTile(
+                    profile: profile!,
+                    isMain: true,
+                    margin: const EdgeInsets.symmetric(horizontal: AppLayout.gutter, vertical: 8),
+                  ),
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [ConnectionButton(), ActiveProxyDelayIndicator()],
                         ),
-                      ],
-                    ),
-                    // AsyncData() => switch (hasAnyProfile) {
-                    //     AsyncData(value: true) => const EmptyActiveProfileHomeBody(),
-                    //     _ => const EmptyProfilesHomeBody(),
-                    //   },
-                    // AsyncError(:final error) => SliverErrorBodyPlaceholder(t.presentShortError(error)),
-                    // _ => const SliverToBoxAdapter(),
-                    // },
+                      ),
+                      ActiveProxyFooter(),
+                      Gap(32),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A wide window puts the active profile and the proxy card beside the button
+/// instead of stacking them, so the button stays the centre of attention
+/// without leaving two empty margins.
+class _TwoColumnBody extends StatelessWidget {
+  const _TwoColumnBody({required this.profile});
+
+  final ProfileEntity? profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppLayout.wideGutter, vertical: AppLayout.wideGutter),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [ConnectionButton(), ActiveProxyDelayIndicator()],
+                ),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: AppLayout.sideColumnWidth,
+          child: SingleChildScrollView(
+            // The bottom room keeps the last card clear of the quick settings handle.
+            padding: const EdgeInsetsDirectional.only(top: AppLayout.wideGutter, end: AppLayout.wideGutter, bottom: 56),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (profile != null) ...[ProfileTile(profile: profile!, isMain: true), const Gap(12)],
+                const ActiveProxyFooter(compact: true),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickSettingsHandle extends ConsumerWidget {
+  const _QuickSettingsHandle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(translationsProvider).requireValue;
+    final theme = Theme.of(context);
+    const radius = BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16));
+
+    return Positioned(
+      right: 0,
+      left: 0,
+      bottom: 0,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Material(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: radius,
+            child: InkWell(
+              borderRadius: radius,
+              onTap: () => ref.read(bottomSheetsNotifierProvider.notifier).showQuickSettings(),
+              child: Container(
+                height: 32,
+                padding: const EdgeInsetsDirectional.only(start: 16, end: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(t.pages.home.quickSettings),
+                    const Gap(4),
+                    const Icon(Icons.arrow_drop_up_rounded, size: 16),
                   ],
                 ),
               ),
             ),
-            if (ref.watch(hasAnyProfileProvider).value ?? false)
-              Positioned(
-                right: 0,
-                left: 0,
-                bottom: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Material(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                      child: InkWell(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
-                        onTap: () => ref.read(bottomSheetsNotifierProvider.notifier).showQuickSettings(),
-                        child: Container(
-                          height: 32,
-                          padding: const EdgeInsetsDirectional.only(start: 16, end: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(t.pages.home.quickSettings),
-                              const Gap(4),
-                              const Icon(Icons.arrow_drop_up_rounded, size: 16),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -196,13 +233,21 @@ class AppVersionLabel extends HookConsumerWidget {
     return Semantics(
       label: t.common.version,
       button: false,
-      child: Container(
-        decoration: BoxDecoration(color: theme.colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(4)),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-        child: Text(
-          version,
-          textDirection: TextDirection.ltr,
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+      child: Tooltip(
+        message: version,
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: Text(
+            version,
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+          ),
         ),
       ),
     );

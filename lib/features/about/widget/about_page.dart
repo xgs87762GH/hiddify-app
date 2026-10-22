@@ -9,6 +9,7 @@ import 'package:hiddify/core/model/constants.dart';
 import 'package:hiddify/core/model/failures.dart';
 import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/core/widget/adaptive_icon.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
@@ -82,63 +83,68 @@ class AboutPage extends HookConsumerWidget {
           const Gap(8),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Assets.images.logo.svg(width: 64, height: 64),
-                  const Gap(16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppLayout.maxColumnWidth),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(t.common.appTitle, style: Theme.of(context).textTheme.titleLarge),
-                      const Gap(4),
-                      Text("${t.common.version} ${appInfo.presentVersion}"),
+                      Assets.images.logo.svg(width: 64, height: 64),
+                      const Gap(16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t.common.appTitle, style: Theme.of(context).textTheme.titleLarge),
+                          const Gap(4),
+                          Text("${t.common.version} ${appInfo.presentVersion}"),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              SliverList(
+                delegate: SliverChildListDelegate([
+                  ...conditionalTiles,
+                  if (conditionalTiles.isNotEmpty) const Divider(),
+                  ListTile(
+                    title: Text(t.pages.about.sourceCode),
+                    trailing: const Icon(FluentIcons.open_24_regular),
+                    onTap: () async {
+                      await UriUtils.tryLaunch(Uri.parse(Constants.githubUrl));
+                    },
+                  ),
+                  ListTile(
+                    title: Text(t.pages.about.telegramChannel),
+                    trailing: const Icon(FluentIcons.open_24_regular),
+                    onTap: () async {
+                      await UriUtils.tryLaunch(Uri.parse(Constants.telegramChannelUrl));
+                    },
+                  ),
+                  ListTile(
+                    title: Text(t.pages.about.termsAndConditions),
+                    trailing: const Icon(FluentIcons.open_24_regular),
+                    onTap: () async {
+                      await UriUtils.tryLaunch(Uri.parse(Constants.termsAndConditionsUrl));
+                    },
+                  ),
+                  ListTile(
+                    title: Text(t.pages.about.privacyPolicy),
+                    trailing: const Icon(FluentIcons.open_24_regular),
+                    onTap: () async {
+                      await UriUtils.tryLaunch(Uri.parse(Constants.privacyPolicyUrl));
+                    },
+                  ),
+                ]),
+              ),
+            ],
           ),
-          SliverList(
-            delegate: SliverChildListDelegate([
-              ...conditionalTiles,
-              if (conditionalTiles.isNotEmpty) const Divider(),
-              ListTile(
-                title: Text(t.pages.about.sourceCode),
-                trailing: const Icon(FluentIcons.open_24_regular),
-                onTap: () async {
-                  await UriUtils.tryLaunch(Uri.parse(Constants.githubUrl));
-                },
-              ),
-              ListTile(
-                title: Text(t.pages.about.telegramChannel),
-                trailing: const Icon(FluentIcons.open_24_regular),
-                onTap: () async {
-                  await UriUtils.tryLaunch(Uri.parse(Constants.telegramChannelUrl));
-                },
-              ),
-              ListTile(
-                title: Text(t.pages.about.termsAndConditions),
-                trailing: const Icon(FluentIcons.open_24_regular),
-                onTap: () async {
-                  await UriUtils.tryLaunch(Uri.parse(Constants.termsAndConditionsUrl));
-                },
-              ),
-              ListTile(
-                title: Text(t.pages.about.privacyPolicy),
-                trailing: const Icon(FluentIcons.open_24_regular),
-                onTap: () async {
-                  await UriUtils.tryLaunch(Uri.parse(Constants.privacyPolicyUrl));
-                },
-              ),
-            ]),
-          ),
-        ],
+        ),
       ),
     );
   }
