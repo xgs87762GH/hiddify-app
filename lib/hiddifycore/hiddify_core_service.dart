@@ -12,6 +12,7 @@ import 'package:hiddify/features/log/model/log_level.dart' as config_log_level;
 import 'package:hiddify/features/settings/data/config_option_repository.dart';
 import 'package:hiddify/hiddifycore/core_interface/core_interface_wrapper_stub.dart'
     if (dart.library.io) 'package:hiddify/hiddifycore/core_interface/core_interface_wrapper.dart';
+import 'package:hiddify/hiddifycore/core_start_failure.dart';
 import 'package:hiddify/hiddifycore/generated/v2/hcommon/common.pb.dart';
 import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore.pb.dart';
 import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore_service.pbgrpc.dart';
@@ -36,6 +37,16 @@ class HiddifyCoreService with InfraLogger {
   final CallOptions? grpcOptions = null; //CallOptions(timeout: const Duration(milliseconds: 10000));
   final Map<String, StreamSubscription?> subscriptions = {};
   List<OutboundGroup> latest = [];
+
+  /// Re-arms the status listener when the core's gRPC channel goes away.
+  ///
+  /// The channel is replaced on every setup (a resume, a core restart), and a
+  /// listener opened on the old one errors out for good. Without this the app
+  /// keeps whatever state it had when the channel died.
+  Timer? _statusRearm;
+  static const _minRearmDelay = Duration(seconds: 2);
+  static const _maxRearmDelay = Duration(seconds: 30);
+  Duration _rearmDelay = _minRearmDelay;
 
   Future<void> init() async {
     await setup()
@@ -169,18 +180,16 @@ class HiddifyCoreService with InfraLogger {
         );
         ref.read(coreRestartSignalProvider.notifier).restart();
         if (res.messageType != MessageType.ALREADY_STARTED && res.messageType != MessageType.EMPTY) {
-          final alert = res.message.contains("denied") ? CoreAlert.requestVPNPermission : CoreAlert.startFailed;
-          currentState = CoreStatus.stopped(
-            alert: alert,
-            message: "failed to start core ${res.messageType} ${res.message}",
-          );
+          // The response path used to look for the word "denied" only, so
+          // "operation not permitted" and Windows' privilege wording fell
+          // through to a generic "start failed". Same classifier as the error
+          // path now, so both report the cause the user can act on.
+          final failure = CoreStartFailure.fromMessage(res.message);
+          currentState = CoreStatus.stopped(alert: _alertFor(failure), message: res.message);
 
           statusController.add(currentState);
 
-          return left(
-            currentState.getCoreAlert() ??
-                ConnectionFailure.unexpected("failed to start core ${res.messageType} ${res.message}"),
-          );
+          return left(failure);
         }
       } on GrpcError catch (e) {
         loggy.error("failed to start bg core: $e");
@@ -192,24 +201,30 @@ class HiddifyCoreService with InfraLogger {
         if (message.isEmpty) {
           return left(const ConnectionFailure.unexpected("failed to start background core"));
         }
-        // Go words Windows errors in English, so the two texts below match on every system language.
-        // Windows refuses the TUN adapter to a process that is not elevated.
-        if (message.contains("start inbound/tun[tun-in]: configure tun interface: Access is denied.")) {
-          return left(const ConnectionFailure.missingPrivilege());
-        }
-        // Another adapter already has the address the core gives its TUN (172.19.0.1).
-        if (message.contains(
-          "start inbound/tun[tun-in]: configure tun interface: set ipv4 address: The object already exists.",
-        )) {
-          return left(const ConnectionFailure.tunAddressInUse());
-        }
-        return left(ConnectionFailure.unexpected(message));
+        // The core words these itself, in English on every system language, so
+        // the text is the only thing that tells "elevate the app" apart from
+        // "this config is broken". One place decides, and it covers Windows'
+        // two spellings, Linux and macOS (issues #2276, #2224).
+        return left(CoreStartFailure.fromMessage(message));
       }
 
       // if (res.messageType != MessageType.EMPTY) return left(res);
 
       return right(unit);
     });
+  }
+
+  /// The alert that goes with a start failure, for the status the UI reads.
+  ///
+  /// [CoreStartFailure.fromMessage] already produced the failure that is
+  /// returned to the caller; this only mirrors it onto the status stream, which
+  /// is what the home screen and the tray show.
+  static CoreAlert _alertFor(ConnectionFailure failure) {
+    return switch (failure) {
+      MissingVpnPermission() || MissingPrivilege() => CoreAlert.requestVPNPermission,
+      InvalidConfig() || InvalidConfigOption() => CoreAlert.emptyConfiguration,
+      _ => CoreAlert.startFailed,
+    };
   }
 
   TaskEither<String, Unit> stop() {
@@ -219,9 +234,12 @@ class HiddifyCoreService with InfraLogger {
       try {
         await core.bgClient.stop(Empty());
       } on GrpcError catch (e) {
-        if (e.code == StatusCode.unknown && !(e.message?.contains("HTTP/2") ?? false)) {
+        // A terminated channel is not a failed stop: the core went away with
+        // it, which is what was asked for.
+        if (isConnectionTerminated(e)) {
+          loggy.debug("stop raced with the channel closing: ${e.message}");
+        } else {
           errMsg = e.message ?? "failed to stop core: $e";
-
           loggy.error("failed to stop bg core: $e");
         }
       } catch (e) {
@@ -233,6 +251,23 @@ class HiddifyCoreService with InfraLogger {
       if (errMsg.isNotEmpty) return left(errMsg);
       return right(unit);
     });
+  }
+
+  /// Whether a gRPC error is only the channel being torn down underneath us.
+  ///
+  /// gRPC reports a dead connection as UNKNOWN with an HTTP/2 message, which is
+  /// what every resume, every core restart and every quit produces. Three call
+  /// sites used to compare `code` and message text with three different
+  /// spellings; this is the one place that decides now.
+  ///
+  /// Public because the repositories that wrap these streams need the same
+  /// answer before they decide whether a failure is worth an error line.
+  static bool isConnectionTerminated(Object error) {
+    if (error is! GrpcError) return false;
+    if (error.code == StatusCode.unavailable) return true;
+    if (error.code != StatusCode.unknown && error.code != StatusCode.cancelled) return false;
+    final message = error.message ?? "";
+    return message.isEmpty || message.contains("HTTP/2") || message.contains("Connection");
   }
 
   /// Applies a changed config to the running core: first as a hot reload, which keeps the core
@@ -264,12 +299,18 @@ class HiddifyCoreService with InfraLogger {
         );
         if (res.messageType != MessageType.EMPTY) return left("${res.messageType} ${res.message}");
       } on GrpcError catch (e) {
-        loggy.error("failed to restart bg core: $e");
-        if (e.code == StatusCode.unknown && !(e.message?.contains("HTTP/2 error") ?? false)) {
+        // A restart tears the channel down before it answers, so a terminated
+        // connection here means the restart did happen.
+        if (!isConnectionTerminated(e)) {
+          loggy.error("failed to restart bg core: $e");
           return left("${e.message}");
         }
+        loggy.debug("restart closed the channel: ${e.message}");
       }
 
+      // The core runs again behind a connection the old listener cannot use.
+      _rearmDelay = _minRearmDelay;
+      _scheduleStatusRearm();
       return right(unit);
       // await stop().run();
       // return await start(path, name, disableMemoryLimit).run();
@@ -364,7 +405,10 @@ class HiddifyCoreService with InfraLogger {
       try {
         final res = await core.bgClient.selectOutbound(
           SelectOutboundRequest(groupTag: groupTag, outboundTag: outboundTag),
-          options: CallOptions(timeout: const Duration(seconds: 1)),
+          // One second is not enough on a loaded machine, and the call is only
+          // a lookup and a pointer swap inside the core. A timeout here showed
+          // up as a failed switch that had actually happened.
+          options: CallOptions(timeout: const Duration(seconds: 5)),
         );
         if (res.code != ResponseCode.OK) return left("${res.code} ${res.message}");
 
@@ -380,7 +424,13 @@ class HiddifyCoreService with InfraLogger {
     return TaskEither(() async {
       loggy.debug("url test");
       try {
-        final res = await core.bgClient.urlTest(UrlTestRequest(tag: tag));
+        // A test of a whole group is as slow as its slowest proxy, so this one
+        // gets a timeout instead of the default (none): without it a core that
+        // stops answering left the button spinning forever.
+        final res = await core.bgClient.urlTest(
+          UrlTestRequest(tag: tag),
+          options: CallOptions(timeout: const Duration(seconds: 30)),
+        );
         if (res.code != ResponseCode.OK) return left("${res.code} ${res.message}");
 
         return right(unit);
@@ -432,34 +482,53 @@ class HiddifyCoreService with InfraLogger {
       "${key}StatusListener",
       () => cc
           .coreInfoListener(Empty(), options: grpcOptions)
-          .doOnCancel(() {
-            loggy.error("status", "Canceld");
-            if (currentState == const CoreStatus.started()) currentState = const CoreStatus.stopped();
-          })
-          .doOnData((event) {
-            loggy.debug("status", event);
-            if (currentState == const CoreStatus.started()) currentState = const CoreStatus.stopped();
-          })
+          // A closed or broken channel is the ordinary end of this listener: it
+          // happens on every resume and every core restart. It is not a failure
+          // of the tunnel, so it is not logged as one any more; the re-arm
+          // below recovers and the last known state stays on screen meanwhile.
+          .doOnCancel(() => loggy.debug("status listener cancelled"))
           .doOnDone(() {
-            loggy.error("status", "done");
-            if (currentState == const CoreStatus.started()) currentState = const CoreStatus.stopped();
+            loggy.debug("status listener done");
+            _scheduleStatusRearm();
           })
-          .endWith(CoreInfoResponse(coreState: CoreStates.STOPPED))
+          // No `endWith(stopped)` here any more. It pushed a STOPPED status
+          // whenever the listener closed, so a resume 鈥?which replaces the
+          // channel 鈥?told the UI the tunnel had stopped while it was still
+          // up: the connect button flipped to "Connect" and the proxies page
+          // emptied until the next event arrived. A real stop is reported by
+          // the core itself.
           .map((event) {
+            _rearmDelay = _minRearmDelay;
             currentState = CoreStatus.fromCoreInfo(event);
             statusController.add(currentState);
             return currentState;
           }),
-      // .endWith(const CoreStatus.stopped())
       onError: (error) {
-        loggy.error("Stream error in ${key}StatusListener: $error");
-
-        // currentState = const CoreStatus.stopped();
-        // statusController.add(currentState);
-
-        // startListeningStatus(key, cc);
+        // Same story: the channel was terminated, which gRPC reports as an
+        // error even though nothing went wrong inside the app.
+        loggy.debug("status listener ended: $error");
+        _scheduleStatusRearm();
       },
     );
+  }
+
+  /// Opens the status listener again after [_rearmDelay], doubling the wait up
+  /// to [_maxRearmDelay] while the core stays unreachable.
+  void _scheduleStatusRearm() {
+    if (_statusRearm?.isActive ?? false) return;
+    final delay = _rearmDelay;
+    loggy.debug("re-arming status listener in $delay");
+    _statusRearm = Timer(delay, () async {
+      _statusRearm = null;
+      if (!core.isInitialized()) return;
+      try {
+        await startListeningStatus("bg", core.bgClient);
+      } catch (e) {
+        loggy.debug("failed to re-arm status listener: $e");
+      }
+    });
+    final doubled = _rearmDelay * 2;
+    _rearmDelay = doubled < _maxRearmDelay ? doubled : _maxRearmDelay;
   }
 
   Future<void> startListeningLogs(String key, CoreClient cc) async {
@@ -511,7 +580,15 @@ class HiddifyCoreService with InfraLogger {
       },
       cancelOnError: true,
       onError: (error) {
-        loggy.error('Stream error: $error');
+        // A terminated channel is the ordinary end of a subscription that was
+        // opened on a connection the core has since replaced 鈥?it happens on
+        // every resume and every restart. Logging it as an error with a stack
+        // trace buried the errors that do matter.
+        if (error is GrpcError && isConnectionTerminated(error)) {
+          loggy.debug("subscription [$key] ended with the channel: ${error.message}");
+        } else {
+          loggy.error('Stream error: $error');
+        }
         onError?.call(error);
         subscriptions[key]?.cancel();
         subscriptions.remove(key);
@@ -556,6 +633,10 @@ class HiddifyCoreService with InfraLogger {
     if (!core.isInitialized()) {
       return;
     }
+    // The app is going to the background, so nothing is listening for a while.
+    // A re-arm scheduled by the dying channel must not fire into the void.
+    _statusRearm?.cancel();
+    _statusRearm = null;
     if (!core.isSingleChannel()) {
       await stopListenSingle("fg");
       await stopListenSingle("bg");
