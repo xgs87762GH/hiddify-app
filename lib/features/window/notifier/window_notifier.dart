@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:hiddify/core/preferences/general_preferences.dart';
 import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
+import 'package:hiddify/features/window/window_geometry.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:screen_retriever/screen_retriever.dart';
@@ -46,53 +47,76 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
   Future<void> initWindowState() async {
     final isMaximized = ref.read(Preferences.windowMaximized);
     loggy.debug("window state. maximized: $isMaximized");
-    final size = ref.read(Preferences.windowSize);
-    loggy.debug("window state. size: $size");
-    final position = ref.read(Preferences.windowPosition);
-    final isWindowVisible = position != null && await checkWindowVisivility(position, size);
-    loggy.debug("window state. position: ${isWindowVisible ? position : "centered"}");
+    final savedSize = ref.read(Preferences.windowSize);
+    final savedPosition = ref.read(Preferences.windowPosition);
     final silentStart = ref.read(Preferences.silentStart);
     loggy.debug("window state. silent start: ${silentStart ? "Enabled" : "Disabled"}");
 
-    await windowManager.waitUntilReadyToShow(
-      WindowOptions(size: size, center: !isWindowVisible, minimumSize: minimumWindowSize),
-    );
-    if (isWindowVisible) {
-      await windowManager.setPosition(position);
-      loggy.debug("restoring window to position: $position");
+    final displays = await screenRetriever.getAllDisplays();
+    final savedDisplay = savedPosition == null ? null : displayForSavedWindow(displays, savedPosition & savedSize);
+    final targetDisplay = savedDisplay ?? await screenRetriever.getPrimaryDisplay();
+    final targetScale = displayScale(targetDisplay);
+    final workArea = physicalWorkArea(targetDisplay);
+    final minimumPhysicalSize = minimumWindowSize * targetScale;
+
+    final Rect window;
+    if (savedDisplay != null && savedPosition != null) {
+      final savedScale = displayScale(savedDisplay);
+      window = fitWindowToWorkArea(
+        Rect.fromLTWH(
+          savedPosition.dx * savedScale,
+          savedPosition.dy * savedScale,
+          savedSize.width * savedScale,
+          savedSize.height * savedScale,
+        ),
+        workArea,
+        minimumSize: minimumPhysicalSize,
+      );
     } else {
-      loggy.debug("no previous position found, centering window");
+      window = centeredWindow(
+        workArea,
+        defaultWindowSize * targetScale,
+        minimumSize: minimumPhysicalSize,
+      );
     }
-    if (isMaximized) {
-      await windowManager.maximize();
-      loggy.debug("restoring window to maximized state");
-    }
+    loggy.debug("window state. restoring ${window.size} at ${window.topLeft} (scale: $targetScale)");
+
+    final startDpr = windowManager.getDevicePixelRatio();
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(size: window.size / startDpr, minimumSize: minimumWindowSize),
+    );
+    // Move first: the window adopts the target display's DPI, which is the only
+    // way to set the size in the units the geometry was saved in.
+    await windowManager.setPosition(window.topLeft / startDpr);
+    var dpr = await _settledDpr(targetScale, const Duration(milliseconds: 250));
     if (!silentStart) {
       await ref.read(windowNotifierProvider.notifier).show(focus: false);
       loggy.debug("showing app window on start");
     } else {
       loggy.debug("silent start, remain hidden accessible via tray");
     }
+    if ((dpr - targetScale).abs() > 0.01) {
+      dpr = await _settledDpr(targetScale, const Duration(milliseconds: 500));
+    }
+    await windowManager.setSize(window.size / dpr);
+    await windowManager.setPosition(window.topLeft / dpr);
+    if (isMaximized) {
+      await windowManager.maximize();
+      loggy.debug("restoring window to maximized state");
+    }
   }
 
-  Future<bool> checkWindowVisivility(Offset windowPos, Size windowSize, {double tolerance = 10.0}) async {
-    final Rect windowRect = windowPos & windowSize;
-
-    final displays = await screenRetriever.getAllDisplays();
-
-    for (final display in displays) {
-      if (display.visiblePosition == null || display.visibleSize == null) {
-        continue;
-      }
-      final Rect monitorRect = display.visiblePosition! & display.visibleSize!;
-      if (windowRect.left >= (monitorRect.left - tolerance) &&
-          windowRect.top >= (monitorRect.top - tolerance) &&
-          windowRect.right <= (monitorRect.right + tolerance) &&
-          windowRect.bottom <= (monitorRect.bottom + tolerance)) {
-        return true;
-      }
+  Future<double> _settledDpr(double expected, Duration timeout) async {
+    final stopwatch = Stopwatch()..start();
+    var dpr = windowManager.getDevicePixelRatio();
+    while ((dpr - expected).abs() > 0.01 && stopwatch.elapsed < timeout) {
+      await Future.delayed(const Duration(milliseconds: 25));
+      dpr = windowManager.getDevicePixelRatio();
     }
-    return false;
+    if ((dpr - expected).abs() > 0.01) {
+      loggy.debug("window state. display scale did not settle on $expected (got $dpr)");
+    }
+    return dpr;
   }
 
   Future<void> show({bool focus = true}) async {
