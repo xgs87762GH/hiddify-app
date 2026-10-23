@@ -1,3 +1,5 @@
+import 'package:hiddify/core/localization/translations.dart';
+import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/core/preferences/preferences_provider.dart';
 import 'package:hiddify/utils/custom_loggers.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -85,7 +87,7 @@ class PreferencesEntry<T, P> with InfraLogger {
   }
 }
 
-class PreferencesNotifier<T, P> extends StateNotifier<T> {
+class PreferencesNotifier<T, P> extends StateNotifier<T> with InfraLogger {
   PreferencesNotifier._({required Ref ref, required this.entry, this.overrideValue, this.possibleValues}) : _ref = ref, super(overrideValue ?? entry.read());
 
   final Ref _ref;
@@ -128,11 +130,22 @@ class PreferencesNotifier<T, P> extends StateNotifier<T> {
 
   Future<void> updateRaw(P input) async {
     final value = await entry.writeRaw(input);
-    if (value != null) state = value;
+    if (value == null) return _signalWriteFailure();
+    state = value;
   }
 
   Future<void> update(T value) async {
-    if (await entry.write(value)) state = value;
+    if (!await entry.write(value)) return _signalWriteFailure();
+    state = value;
+  }
+
+  /// A rejected write used to change nothing on screen and say nothing: the
+  /// toggle snapped back as if the tap never landed.
+  void _signalWriteFailure() {
+    loggy.warning("preference [${entry.key}] was not persisted");
+    _ref.read(inAppNotificationControllerProvider).showErrorToast(
+          _ref.read(translationsProvider).requireValue.common.saveFailure,
+        );
   }
 
   Future<void> reset() async {
