@@ -49,14 +49,49 @@ class ProfilesPage extends HookConsumerWidget {
         icon: const Icon(Icons.add_rounded),
       ),
       body: asyncProfiles.when(
-        data: (data) => ListView.separated(
-          padding: const EdgeInsets.fromLTRB(AppLayout.gutter, 12, AppLayout.gutter, 84),
-          separatorBuilder: (context, index) => const Gap(12),
-          itemBuilder: (context, index) => ProfileTile(key: ValueKey(data[index].id), profile: data[index]),
-          itemCount: data.length,
-        ),
+        data: (data) => data.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.folder_off_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    const Gap(12),
+                    Text(t.common.empty),
+                    const Gap(12),
+                    FilledButton.icon(
+                      onPressed: () async =>
+                          await ref.read(bottomSheetsNotifierProvider.notifier).showAddProfile(),
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(t.pages.profiles.add),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(AppLayout.gutter, 12, AppLayout.gutter, 84),
+                separatorBuilder: (context, index) => const Gap(12),
+                itemBuilder: (context, index) => ProfileTile(key: ValueKey(data[index].id), profile: data[index]),
+                itemCount: data.length,
+              ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Text(t.presentShortError(error)),
+        // An error here is a query that failed, so offer a way to run it again
+        // instead of leaving the text on screen with nothing to do.
+        error: (error, stackTrace) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, color: Theme.of(context).colorScheme.error),
+              const Gap(12),
+              Text(t.presentShortError(error), textAlign: TextAlign.center),
+              const Gap(12),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(profilesNotifierProvider),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(t.common.retry),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

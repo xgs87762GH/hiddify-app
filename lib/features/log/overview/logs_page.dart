@@ -7,6 +7,7 @@ import 'package:hiddify/core/logger/ring/log_ring.dart';
 import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/core/preferences/general_preferences.dart';
 import 'package:hiddify/core/router/bottom_sheets/bottom_sheets_notifier.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
 import 'package:hiddify/features/log/model/log_level.dart' as engine;
 import 'package:hiddify/features/log/overview/logs_overview_notifier.dart';
@@ -116,7 +117,16 @@ class _LogsPageState extends ConsumerState<LogsPage> with PresLogger {
             iconSize: 20,
           ),
           IconButton(
-            onPressed: notifier.clear,
+            // Every recorded log is gone for good, so it asks first.
+            onPressed: () async => await ref
+                .read(dialogNotifierProvider.notifier)
+                .showConfirmation(
+                  title: t.dialogs.confirmation.logs.clear.title,
+                  message: t.dialogs.confirmation.logs.clear.msg,
+                )
+                .then((confirmed) {
+                  if (confirmed) notifier.clear();
+                }),
             icon: const Icon(FluentIcons.delete_lines_20_regular),
             tooltip: t.common.clear,
             iconSize: 20,

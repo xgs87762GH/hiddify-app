@@ -53,12 +53,21 @@ class StatsCard extends StatelessWidget {
                   if (stat.semanticLabel != null) {
                     label = Tooltip(message: stat.semanticLabel, verticalOffset: 8, child: label);
                   }
+                  // Both sides are flexible: in a narrow sidebar the label or the
+                  // value is longer than the row, and an unconstrained Row reports
+                  // an overflow instead of letting the ellipsis do its job.
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      label,
+                      Flexible(child: label),
                       const Gap(2),
-                      DefaultTextStyle(style: effectiveDataStyle!, overflow: TextOverflow.ellipsis, child: stat.data),
+                      Flexible(
+                        child: DefaultTextStyle(
+                          style: effectiveDataStyle!,
+                          overflow: TextOverflow.ellipsis,
+                          child: stat.data,
+                        ),
+                      ),
                     ],
                   );
                 })

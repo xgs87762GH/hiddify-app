@@ -78,6 +78,16 @@ class ConnectionButton extends HookConsumerWidget {
         _Look.failed => t.connection.failed,
       },
       hint: look == _Look.failed ? t.connection.tapToRetry : null,
+      // Says why the tap does nothing. Most disabled looks are only visible as
+      // a spinner, and hot reloading looks just like being connected.
+      tooltip: switch (look) {
+        _Look.loading || _Look.connecting => t.connection.connecting,
+        _Look.disconnecting => t.connection.disconnecting,
+        _Look.hotReloading => t.connection.hotReloading,
+        _Look.failed => t.connection.tapToRetry,
+        _Look.disconnected => t.connection.tapToConnect,
+        _ => t.connection.connected,
+      },
       buttonColor: switch (look) {
         _Look.connected => buttonTheme.connectedColor!,
         _Look.noPing || _Look.hotReloading => const Color.fromARGB(255, 185, 176, 103),
@@ -112,6 +122,7 @@ class _ConnectionButton extends HookWidget {
     required this.onTap,
     required this.label,
     required this.hint,
+    required this.tooltip,
     required this.buttonColor,
     required this.image,
     required this.useImage,
@@ -121,6 +132,7 @@ class _ConnectionButton extends HookWidget {
   final VoidCallback? onTap;
   final String label;
   final String? hint;
+  final String tooltip;
   final Color buttonColor;
   final AssetGenImage image;
   final bool useImage;
@@ -129,6 +141,16 @@ class _ConnectionButton extends HookWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final busy = look == _Look.connecting || look == _Look.disconnecting;
+    final disabled = onTap == null;
+
+    // A dimmed icon is the only difference between a button that is waiting and
+    // one that can be pressed. Hot reloading used to look exactly like being
+    // connected even though the tap was off.
+    final iconOpacity = switch (look) {
+      _Look.loading => .38,
+      _ when disabled && !busy => .6,
+      _ => 1.0,
+    };
 
     // One ripple when a wait the user watched ends connected, not when the
     // app opens on a tunnel that is already up or a timed-out ping recovers.
@@ -196,32 +218,35 @@ class _ConnectionButton extends HookWidget {
                     ),
                   ),
                 ),
-                Material(
-                  key: const ValueKey("home_connection_button"),
-                  shape: const CircleBorder(),
-                  color: Colors.white,
-                  elevation: 3,
-                  shadowColor: Colors.black,
-                  surfaceTintColor: Colors.transparent,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    focusColor: Colors.grey,
-                    onTap: onTap,
-                    child: Padding(
-                      padding: const EdgeInsets.all(36),
-                      child: AnimatedOpacity(
-                        opacity: look == _Look.loading ? .38 : 1,
-                        duration: const Duration(milliseconds: 300),
-                        child: TweenAnimationBuilder(
-                          tween: ColorTween(end: buttonColor),
-                          duration: const Duration(milliseconds: 250),
-                          builder: (context, value, child) {
-                            if (useImage) {
-                              return image.image();
-                            } else {
-                              return Assets.images.logo.svg(colorFilter: ColorFilter.mode(value!, BlendMode.srcIn));
-                            }
-                          },
+                Tooltip(
+                  message: tooltip,
+                  child: Material(
+                    key: const ValueKey("home_connection_button"),
+                    shape: const CircleBorder(),
+                    color: Colors.white,
+                    elevation: 3,
+                    shadowColor: Colors.black,
+                    surfaceTintColor: Colors.transparent,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      focusColor: Colors.grey,
+                      onTap: onTap,
+                      child: Padding(
+                        padding: const EdgeInsets.all(36),
+                        child: AnimatedOpacity(
+                          opacity: iconOpacity,
+                          duration: const Duration(milliseconds: 300),
+                          child: TweenAnimationBuilder(
+                            tween: ColorTween(end: buttonColor),
+                            duration: const Duration(milliseconds: 250),
+                            builder: (context, value, child) {
+                              if (useImage) {
+                                return image.image();
+                              } else {
+                                return Assets.images.logo.svg(colorFilter: ColorFilter.mode(value!, BlendMode.srcIn));
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),

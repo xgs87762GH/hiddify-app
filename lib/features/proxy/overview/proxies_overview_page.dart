@@ -41,16 +41,22 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
           const Gap(8),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        // The group the page is showing, not a hard-coded tag: the core names
-        // it, and a test of a tag that does not exist does nothing at all.
-        onPressed: () async {
+      // Nothing to test until the core reports a group. It used to look ready
+      // and do nothing when tapped.
+      floatingActionButton: Builder(
+        builder: (context) {
           final tag = proxies.valueOrNull?.tag;
-          if (tag == null || tag.isEmpty) return;
-          await ref.read(proxiesOverviewNotifierProvider.notifier).urlTest(tag);
+          final canTest = tag != null && tag.isNotEmpty;
+          return FloatingActionButton(
+            // The group the page is showing, not a hard-coded tag: the core
+            // names it, and a test of a tag that does not exist does nothing.
+            onPressed: !canTest
+                ? null
+                : () async => await ref.read(proxiesOverviewNotifierProvider.notifier).urlTest(tag),
+            tooltip: t.pages.proxies.testDelay,
+            child: const Icon(FluentIcons.flash_24_filled),
+          );
         },
-        tooltip: t.pages.proxies.testDelay,
-        child: const Icon(FluentIcons.flash_24_filled),
       ),
       body: proxies.when(
         data: (group) => group != null
@@ -84,7 +90,24 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
                 },
               )
             : Center(child: Text(t.pages.proxies.empty)),
-        error: (error, stackTrace) => Center(child: Text(t.presentShortError(error))),
+        // The core connection dropped or the query failed: let the user ask
+        // again instead of leaving an error text with no way forward.
+        error: (error, stackTrace) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, color: Theme.of(context).colorScheme.error),
+              const Gap(12),
+              Text(t.presentShortError(error), textAlign: TextAlign.center),
+              const Gap(12),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(proxiesOverviewNotifierProvider),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(t.common.retry),
+              ),
+            ],
+          ),
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
       ),
     );

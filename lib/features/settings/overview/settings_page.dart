@@ -123,7 +123,17 @@ class SettingsPage extends HookConsumerWidget {
               const PopupMenuDivider(),
               MenuItemButton(
                 child: Text(t.pages.settings.options.reset),
-                onPressed: () async => await ref.read(configOptionNotifierProvider.notifier).resetOption(),
+                // Every option goes back to its default, so it asks first.
+                onPressed: () async => await ref
+                    .read(dialogNotifierProvider.notifier)
+                    .showConfirmation(
+                      title: t.dialogs.confirmation.resetOptions.title,
+                      message: t.dialogs.confirmation.resetOptions.msg,
+                    )
+                    .then((confirmed) async {
+                      if (!confirmed) return;
+                      await ref.read(configOptionNotifierProvider.notifier).resetOption();
+                    }),
               ),
             ],
             builder: (context, controller, child) => IconButton(
@@ -183,9 +193,16 @@ class SettingsPage extends HookConsumerWidget {
                   child: ListTile(
                     title: Text(t.pages.settings.resetTunnel),
                     leading: const Icon(Icons.autorenew_rounded),
-                    onTap: () async {
-                      await ref.read(resetTunnelNotifierProvider.notifier).run();
-                    },
+                    onTap: () async => await ref
+                        .read(dialogNotifierProvider.notifier)
+                        .showConfirmation(
+                          title: t.dialogs.confirmation.resetTunnel.title,
+                          message: t.dialogs.confirmation.resetTunnel.msg,
+                        )
+                        .then((confirmed) async {
+                          if (!confirmed) return;
+                          await ref.read(resetTunnelNotifierProvider.notifier).run();
+                        }),
                   ),
                 ),
               if (Breakpoint(context).isMobile()) ...[
