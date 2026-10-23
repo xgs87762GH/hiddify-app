@@ -11,6 +11,13 @@ import 'package:hiddify/features/proxy/widget/proxy_tile.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+/// Column count for the proxy grid at [width] logical pixels.
+///
+/// The grid is guttered on both sides, so callers pass the width already
+/// reduced by the gutters; mobile stays one column below 600.
+int proxyColumnCount(double width, {required bool isMobile}) =>
+    isMobile && width < 600 ? 1 : max(1, (width / 268).floor());
+
 class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
   const ProxiesOverviewPage({super.key});
 
@@ -65,7 +72,7 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
                   // The grid is padded on both sides, so the column count has to
                   // ignore the gutters or the last column overflows.
                   final width = constraints.maxWidth - AppLayout.gutter * 2;
-                  final crossAxisCount = PlatformUtils.isMobile && width < 600 ? 1 : max(1, (width / 268).floor());
+                  final crossAxisCount = proxyColumnCount(width, isMobile: PlatformUtils.isMobile);
                   return GridView.builder(
                     padding: const EdgeInsets.fromLTRB(AppLayout.gutter, 8, AppLayout.gutter, 86),
                     itemCount: group.items.length,

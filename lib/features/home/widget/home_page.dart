@@ -227,8 +227,10 @@ class AppVersionLabel extends HookConsumerWidget {
     final t = ref.watch(translationsProvider).requireValue;
     final theme = Theme.of(context);
 
-    final version = ref.watch(appInfoProvider).requireValue.presentVersion;
-    if (version.isBlank) return const SizedBox();
+    // valueOrNull: the app info is still loading on the first frame, and
+    // requireValue would throw there and paint the whole bar red.
+    final version = ref.watch(appInfoProvider).valueOrNull?.presentVersion;
+    if (version == null || version.isBlank) return const SizedBox();
 
     return Semantics(
       label: t.common.version,
