@@ -9,6 +9,11 @@ import 'package:hiddify/utils/custom_loggers.dart';
 
 class DioHttpClient with InfraLogger {
   final Map<String, Dio> _dio = {};
+
+  /// One client per mode, kept for the lifetime of the app so the TCP
+  /// connections it opened are reused instead of re-handshaking per request.
+  final Map<String, HttpClient> _clients = {};
+
   DioHttpClient({required Duration timeout, required this.userAgent, required bool debug}) {
     for (final mode in ["proxy", "both"]) {
       _dio[mode] = Dio(
@@ -30,8 +35,9 @@ class DioHttpClient with InfraLogger {
       );
 
       _dio[mode]!.httpClientAdapter = IOHttpClientAdapter(
-        createHttpClient: () {
+        createHttpClient: () => _clients.putIfAbsent(mode, () {
           final client = HttpClient();
+          // Read the port lazily: it is only known once the core is up.
           client.findProxy = (url) {
             if (mode == "proxy") {
               return "PROXY localhost:$port";
@@ -40,7 +46,7 @@ class DioHttpClient with InfraLogger {
             }
           };
           return client;
-        },
+        }),
       );
     }
 
@@ -56,6 +62,15 @@ class DioHttpClient with InfraLogger {
   void setProxyPort(int port) {
     this.port = port;
     loggy.debug("setting proxy port: [$port]");
+  }
+
+  /// Releases the sockets held by the cached clients. Callers own the lifetime:
+  /// the provider this is created in is keepAlive, so nothing else closes them.
+  void close() {
+    for (final client in _clients.values) {
+      client.close(force: true);
+    }
+    _clients.clear();
   }
 
   Future<Response<T>> get<T>(

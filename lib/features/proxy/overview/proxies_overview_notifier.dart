@@ -119,6 +119,9 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
           }, (_) => true),
         )
         .map((event) => event.getOrElse((_) => null))
+        // A null payload would blank the page, contradicting the promise above
+        // that the last list stays on screen, so it is dropped here.
+        .where((proxies) => proxies != null)
         .doOnData((_) => _resubscribeDelay = _minResubscribeDelay)
         .doOnDone(() {
           // gRPC ends the stream when its connection drops, e.g. once iOS suspends the app.

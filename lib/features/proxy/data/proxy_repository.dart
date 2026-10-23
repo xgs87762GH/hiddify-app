@@ -103,28 +103,64 @@ class ProxyRepositoryImpl with ExceptionHandler, InfraLogger implements ProxyRep
     "https://ipinfo.io/json/": oldipinfo.IpInfo.fromIpInfoIoJson,
   };
 
+  /// The source that answered last time. Trying it first keeps this to one
+  /// request in the common case, instead of probing every endpoint on every
+  /// refresh.
+  static String? _lastWorkingSource;
+
   @override
   TaskEither<ProxyFailure, oldipinfo.IpInfo> getCurrentIpInfo(CancelToken cancelToken) {
     return TaskEither.tryCatch(() async {
       Object? error;
-      for (final source in _ipInfoSources.entries) {
-        try {
-          loggy.debug("getting current ip info using [${source.key}]");
-          final response = await client.get<Map<String, dynamic>>(
-            source.key,
-            cancelToken: cancelToken,
-            proxyOnly: true,
-          );
-          if (response.statusCode == 200 && response.data != null) {
-            return source.value(response.data!);
+      final preferred = _lastWorkingSource;
+      if (preferred != null) {
+        for (final entry in _ipInfoSources.entries) {
+          if (entry.key != preferred) continue;
+          try {
+            loggy.debug("getting current ip info using preferred [${entry.key}]");
+            final response = await client.get<Map<String, dynamic>>(
+              entry.key,
+              cancelToken: cancelToken,
+              proxyOnly: true,
+            );
+            if (response.statusCode == 200 && response.data != null) {
+              return entry.value(response.data!);
+            }
+          } catch (e, s) {
+            loggy.debug("preferred ip source [${entry.key}] failed", e, s);
+            error = e;
+            _lastWorkingSource = null;
           }
-        } catch (e, s) {
-          loggy.debug("failed getting ip info using [${source.key}]", e, s);
-          error = e;
-          continue;
+          break;
         }
       }
-      throw UnableToRetrieveIp(error, StackTrace.current);
+      // Every source is asked at once and the first answer wins. Probing them
+      // one after another meant waiting out the full retry budget of each
+      // endpoint before trying the next, which is minutes when the proxy port
+      // is not up yet.
+      final candidates = [
+        for (final source in _ipInfoSources.entries)
+          if (source.key != preferred) source,
+      ];
+      try {
+        return await Future.any(
+          candidates.map((source) async {
+            loggy.debug("getting current ip info using [${source.key}]");
+            final response = await client.get<Map<String, dynamic>>(
+              source.key,
+              cancelToken: cancelToken,
+              proxyOnly: true,
+            );
+            if (response.statusCode != 200 || response.data == null) {
+              throw UnableToRetrieveIp(null, StackTrace.current);
+            }
+            _lastWorkingSource = source.key;
+            return source.value(response.data!);
+          }),
+        );
+      } catch (e) {
+        throw UnableToRetrieveIp(error ?? e, StackTrace.current);
+      }
     }, ProxyUnexpectedFailure.new);
   }
 }
