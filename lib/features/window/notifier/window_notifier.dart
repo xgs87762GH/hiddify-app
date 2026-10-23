@@ -95,15 +95,27 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
     } else {
       loggy.debug("silent start, remain hidden accessible via tray");
     }
+    // From here on the user can see the window, so every step below corrects
+    // something visible instead of holding the first frame.
     if ((dpr - targetScale).abs() > 0.01) {
+      // Place it for the scale it actually got before waiting any longer: at
+      // the wrong DPR the saved position points at a different display, and the
+      // window would sit there for the whole wait.
+      await _applyGeometry(window, windowManager.getDevicePixelRatio());
       dpr = await _settledDpr(targetScale, const Duration(milliseconds: 500));
     }
-    await windowManager.setSize(window.size / dpr);
-    await windowManager.setPosition(window.topLeft / dpr);
+    await _applyGeometry(window, dpr);
     if (isMaximized) {
       await windowManager.maximize();
       loggy.debug("restoring window to maximized state");
     }
+  }
+
+  /// Sets the physical [window] for the given [dpr], the units window_manager
+  /// takes. Called again whenever the display scale settles on a new value.
+  Future<void> _applyGeometry(Rect window, double dpr) async {
+    await windowManager.setSize(window.size / dpr);
+    await windowManager.setPosition(window.topLeft / dpr);
   }
 
   Future<double> _settledDpr(double expected, Duration timeout) async {
