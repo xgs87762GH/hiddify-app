@@ -82,15 +82,17 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
                     ),
                     itemBuilder: (context, index) {
                       final proxy = group.items[index];
-                      return ProxyTile(
-                        proxy,
-                        selected: group.selected == proxy.tag,
-                        onTap: () async {
-                          await ref.read(proxiesOverviewNotifierProvider.notifier).changeProxy(group.tag, proxy.tag);
-                          // if (selectActiveProxyMutation.state.isInProgress) return;
-                          // selectActiveProxyMutation.setFuture(
-                          // );
-                        },
+                      // The delay indicator inside the tile animates on its own;
+                      // the boundary keeps that repaint from dragging every
+                      // visible tile along with it.
+                      return RepaintBoundary(
+                        child: ProxyTile(
+                          proxy,
+                          selected: group.selected == proxy.tag,
+                          onTap: () async {
+                            await ref.read(proxiesOverviewNotifierProvider.notifier).changeProxy(group.tag, proxy.tag);
+                          },
+                        ),
                       );
                     },
                   );
