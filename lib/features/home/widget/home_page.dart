@@ -67,13 +67,22 @@ class HomePage extends HookConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final profile = activeProfile.valueOrNull;
+            // The page measures the box it can spare and hands the button its
+            // diameter: the wide column scrolls, so it only has to fit the
+            // width, while the single column has to fit the height as well.
+            final buttonSize = constraints.maxWidth >= AppLayout.twoColumnWidth
+                ? AppLayout.connectionButtonSize(constraints)
+                : AppLayout.connectionButtonSize(
+                    constraints,
+                    verticalReserve: AppLayout.homeButtonVerticalReserve,
+                  );
             return Stack(
               alignment: Alignment.center,
               children: [
                 if (constraints.maxWidth >= AppLayout.twoColumnWidth)
-                  _TwoColumnBody(profile: profile)
+                  _TwoColumnBody(profile: profile, buttonSize: buttonSize)
                 else
-                  _SingleColumnBody(profile: profile),
+                  _SingleColumnBody(profile: profile, buttonSize: buttonSize),
                 if (ref.watch(hasAnyProfileProvider).value ?? false) const _QuickSettingsHandle(),
               ],
             );
@@ -86,9 +95,10 @@ class HomePage extends HookConsumerWidget {
 
 /// Until the window is wide, the page stays one scrolling column.
 class _SingleColumnBody extends StatelessWidget {
-  const _SingleColumnBody({required this.profile});
+  const _SingleColumnBody({required this.profile, required this.buttonSize});
 
   final ProfileEntity? profile;
+  final double buttonSize;
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +115,7 @@ class _SingleColumnBody extends StatelessWidget {
                     isMain: true,
                     margin: const EdgeInsets.symmetric(horizontal: AppLayout.gutter, vertical: 8),
                   ),
-                const SliverFillRemaining(
+                SliverFillRemaining(
                   hasScrollBody: false,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -114,11 +124,11 @@ class _SingleColumnBody extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [ConnectionButton(), ActiveProxyDelayIndicator()],
+                          children: [ConnectionButton(size: buttonSize), const ActiveProxyDelayIndicator()],
                         ),
                       ),
-                      ActiveProxyFooter(),
-                      Gap(32),
+                      const ActiveProxyFooter(),
+                      const Gap(32),
                     ],
                   ),
                 ),
@@ -135,9 +145,10 @@ class _SingleColumnBody extends StatelessWidget {
 /// instead of stacking them, so the button stays the centre of attention
 /// without leaving two empty margins.
 class _TwoColumnBody extends StatelessWidget {
-  const _TwoColumnBody({required this.profile});
+  const _TwoColumnBody({required this.profile, required this.buttonSize});
 
   final ProfileEntity? profile;
+  final double buttonSize;
 
   @override
   Widget build(BuildContext context) {
@@ -150,9 +161,9 @@ class _TwoColumnBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppLayout.wideGutter, vertical: AppLayout.wideGutter),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
-                child: const Column(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [ConnectionButton(), ActiveProxyDelayIndicator()],
+                  children: [ConnectionButton(size: buttonSize), const ActiveProxyDelayIndicator()],
                 ),
               ),
             ),

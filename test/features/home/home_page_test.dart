@@ -35,8 +35,12 @@ class _FakeActiveProfile extends ActiveProfile {
 }
 
 class _FakeConnection extends ConnectionNotifier {
+  _FakeConnection(this.status);
+
+  final ConnectionStatus status;
+
   @override
-  Stream<ConnectionStatus> build() => Stream.value(const Disconnected());
+  Stream<ConnectionStatus> build() => Stream.value(status);
 }
 
 class _FakeActiveProxy extends ActiveProxyNotifier {
@@ -44,10 +48,10 @@ class _FakeActiveProxy extends ActiveProxyNotifier {
   Stream<OutboundInfo> build() => Stream.value(OutboundInfo());
 }
 
-/// Renders the page at [width] logical pixels (device pixel ratio 1).
-Future<void> pumpHome(WidgetTester tester, double width) async {
+/// Renders the page at [width]x[height] logical pixels (device pixel ratio 1).
+Future<void> pumpHome(WidgetTester tester, double width, {double height = 800, ConnectionStatus status = const Disconnected()}) async {
   tester.view.devicePixelRatio = 1.0;
-  tester.view.physicalSize = Size(width, 800);
+  tester.view.physicalSize = Size(width, height);
   addTearDown(tester.view.reset);
 
   final container = ProviderContainer(
@@ -56,7 +60,7 @@ Future<void> pumpHome(WidgetTester tester, double width) async {
       appInfoProvider.overrideWith(() => _FakeAppInfo()),
       activeProfileProvider.overrideWith(() => _FakeActiveProfile()),
       hasAnyProfileProvider.overrideWith((ref) => Stream.value(false)),
-      connectionNotifierProvider.overrideWith(() => _FakeConnection()),
+      connectionNotifierProvider.overrideWith(() => _FakeConnection(status)),
       activeProxyNotifierProvider.overrideWith(() => _FakeActiveProxy()),
       hotReloadingProvider.overrideWith((ref) => Stream.value(false)),
     ],
@@ -81,6 +85,10 @@ Future<void> pumpHome(WidgetTester tester, double width) async {
 
 final _sideColumn = find.byWidgetPredicate((widget) => widget is SizedBox && widget.width == AppLayout.sideColumnWidth);
 final _connectionButton = find.byKey(const ValueKey('home_connection_button'));
+
+/// Diameter the connection button settled on.
+double _buttonSize(WidgetTester tester) =>
+    tester.widget<SizedBox>(find.byKey(const ValueKey('home_connection_button_size'))).width!;
 final _narrowConstraints = find.byWidgetPredicate(
   (widget) => widget is ConstrainedBox && widget.constraints.maxWidth == AppLayout.maxColumnWidth,
 );
@@ -107,6 +115,33 @@ void main() {
     expect(_connectionButton, findsOneWidget);
     // Phone widths hide the version chip; the about page carries it.
     expect(find.text('5.0.1'), findsNothing);
+  });
+
+  testWidgets('the connection button takes the size it was designed for when there is room', (tester) async {
+    await pumpHome(tester, 1200);
+    expect(_buttonSize(tester), AppLayout.maxButtonSize);
+  });
+
+  testWidgets('the connection button shrinks on a short window instead of overflowing', (tester) async {
+    await pumpHome(tester, 500);
+    final roomy = _buttonSize(tester);
+
+    await pumpHome(tester, 500, height: 420);
+    final short = _buttonSize(tester);
+
+    expect(short, lessThan(roomy));
+    // A short window still has to keep the ring big enough to read as a button.
+    expect(short, greaterThanOrEqualTo(AppLayout.minButtonSize - 1));
+    // Overflow would have thrown while laying the page out.
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a short window keeps the button above the proxy card', (tester) async {
+    // Connected: the proxy card under the button is part of the column too, and
+    // the button has to leave room for it instead of overflowing the page.
+    await pumpHome(tester, 500, height: 420, status: const Connected());
+    expect(_buttonSize(tester), AppLayout.minButtonSize);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the rail threshold width shows two columns before the rail expands', (tester) async {

@@ -5,6 +5,7 @@ import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/constants.dart';
 import 'package:hiddify/core/router/bottom_sheets/bottom_sheets_notifier.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/core/theme/theme_extensions.dart';
 import 'package:hiddify/core/widget/animated_text.dart';
 import 'package:hiddify/features/connection/model/connection_status.dart';
@@ -41,7 +42,11 @@ _Look _lookOf(AsyncValue<ConnectionStatus> status, int delay, bool hotReloading)
 };
 
 class ConnectionButton extends HookConsumerWidget {
-  const ConnectionButton({super.key});
+  const ConnectionButton({super.key, this.size = AppLayout.maxButtonSize});
+
+  /// Diameter of the round button, handed down by the page: the home page
+  /// measures the box it can spare and the rings around the button follow it.
+  final double size;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,6 +104,7 @@ class ConnectionButton extends HookConsumerWidget {
         _ => Assets.images.disconnectNorouz,
       },
       useImage: today.day >= 19 && today.day <= 23 && today.month == 3,
+      size: size,
     );
   }
 
@@ -126,6 +132,7 @@ class _ConnectionButton extends HookWidget {
     required this.buttonColor,
     required this.image,
     required this.useImage,
+    required this.size,
   });
 
   final _Look look;
@@ -136,12 +143,22 @@ class _ConnectionButton extends HookWidget {
   final Color buttonColor;
   final AssetGenImage image;
   final bool useImage;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final busy = look == _Look.connecting || look == _Look.disconnecting;
     final disabled = onTap == null;
+
+    // Every ring around the button is measured from its diameter, so a button
+    // that had to shrink keeps the proportions it was drawn with: at 148px the
+    // spinner keeps its 10px inset, the icon its 36px padding and the label
+    // its 24px gap.
+    final ringInset = size * (10 / 148);
+    final iconPadding = size * (36 / 148);
+    final labelGap = (size * (24 / 148)).clamp(12.0, 24.0);
+    final strokeWidth = (size * (4 / 148)).clamp(2.5, 4.0);
 
     // A dimmed icon is the only difference between a button that is waiting and
     // one that can be pressed. Hot reloading used to look exactly like being
@@ -170,7 +187,8 @@ class _ConnectionButton extends HookWidget {
           label: label,
           hint: hint,
           child: SizedBox.square(
-            dimension: 148,
+            key: const ValueKey("home_connection_button_size"),
+            dimension: size,
             child: Stack(
               fit: StackFit.expand,
               clipBehavior: Clip.none,
@@ -179,13 +197,15 @@ class _ConnectionButton extends HookWidget {
                   animation: ripple,
                   builder: (context, _) => ripple.isAnimating
                       ? Transform.scale(
-                          scale: 1 + .4 * ripple.value,
+                          // A smaller button ripples less, so the ring no
+                          // longer reaches the label below it.
+                          scale: 1 + .25 * ripple.value,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: buttonColor.withValues(alpha: .7 * (1 - ripple.value)),
-                                width: 3,
+                                width: strokeWidth * .75,
                               ),
                             ),
                           ),
@@ -193,10 +213,10 @@ class _ConnectionButton extends HookWidget {
                       : const SizedBox.shrink(),
                 ),
                 Positioned.fill(
-                  left: -10,
-                  top: -10,
-                  right: -10,
-                  bottom: -10,
+                  left: -ringInset,
+                  top: -ringInset,
+                  right: -ringInset,
+                  bottom: -ringInset,
                   // A single faded child: an AnimatedSwitcher here hit duplicate keys
                   // when the state flipped twice within its duration.
                   child: AnimatedOpacity(
@@ -209,7 +229,7 @@ class _ConnectionButton extends HookWidget {
                         // Disconnecting spins the other way.
                         flipX: look == _Look.disconnecting,
                         child: CircularProgressIndicator(
-                          strokeWidth: 4,
+                          strokeWidth: strokeWidth,
                           strokeCap: StrokeCap.round,
                           color: buttonColor,
                           backgroundColor: buttonColor.withValues(alpha: .2),
@@ -232,7 +252,7 @@ class _ConnectionButton extends HookWidget {
                       focusColor: Colors.grey,
                       onTap: onTap,
                       child: Padding(
-                        padding: const EdgeInsets.all(36),
+                        padding: EdgeInsets.all(iconPadding),
                         child: AnimatedOpacity(
                           opacity: iconOpacity,
                           duration: const Duration(milliseconds: 300),
@@ -256,7 +276,7 @@ class _ConnectionButton extends HookWidget {
             ),
           ),
         ),
-        const Gap(24),
+        Gap(labelGap),
         ExcludeSemantics(
           child: Column(
             children: [

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Layout tokens shared by the pages.
@@ -37,6 +39,39 @@ abstract final class AppLayout {
 
   /// Horizontal gutter for a page whose content is [width] wide.
   static double gutterFor(double width) => width >= 840 ? wideGutter : gutter;
+
+  /// Diameter of the home page connection button inside [constraints].
+  ///
+  /// The button is the one round element on the page and it used to be a fixed
+  /// 148px: it crowded a short or phone sized window along with the delay row
+  /// and the proxy card under it, and it stayed small on a tall desktop window.
+  /// It now takes a share of the space the page can spare, and its rings follow
+  /// it, so the whole control scales instead of overflowing.
+  ///
+  /// [verticalReserve] is what the column around the button needs: a column
+  /// that scrolls passes 0, one that has to fit on the screen passes
+  /// [homeButtonVerticalReserve].
+  static double connectionButtonSize(BoxConstraints constraints, {double verticalReserve = 0}) {
+    final width = constraints.maxWidth;
+    final height = constraints.hasBoundedHeight
+        ? math.max(constraints.maxHeight - verticalReserve, 0.0)
+        : double.infinity;
+    final shortest = math.min(width, height);
+    // The lower bound yields to a box that is smaller than the minimum, so an
+    // unusually short window shrinks the button instead of overflowing.
+    final lower = math.min(minButtonSize, shortest);
+    return math.min(math.max(shortest * .3, lower), maxButtonSize);
+  }
+
+  /// Smallest connection button: below it the ring stops reading as a button.
+  static const double minButtonSize = 96;
+
+  /// Largest connection button, the size it was drawn for.
+  static const double maxButtonSize = 148;
+
+  /// Height a single home column needs besides the button: the label and the
+  /// delay row under it, the proxy card below and the gaps around them.
+  static const double homeButtonVerticalReserve = 190;
 
   /// The surface used by the home page cards.
   static BoxDecoration card(BuildContext context) {
