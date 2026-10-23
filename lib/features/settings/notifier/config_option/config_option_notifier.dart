@@ -44,7 +44,7 @@ class ConfigOptionNotifier extends _$ConfigOptionNotifier with AppLogger {
           }
         }
       }
-    }, fireImmediately: true);
+    });
     return false;
   }
 

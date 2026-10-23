@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -34,12 +35,29 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
     // event is what used to hold the tray until its timeout. The tray renders
     // from whatever the streams hold right now, and the listeners keep it in
     // sync from then on, which it never did before beyond the first render.
-    ref.listen(activeProxyNotifierProvider, (_, _) => _refreshTray(t));
-    ref.listen(connectionNotifierProvider, (_, _) => _refreshTray(t));
+    ref.listen(activeProxyNotifierProvider, (_, _) => _scheduleRefresh(t));
+    ref.listen(connectionNotifierProvider, (_, _) => _scheduleRefresh(t));
     // The first render is scheduled rather than fired from a listener: a
     // fireImmediately callback would read providers while the graph is still
     // being iterated, which riverpod reports as a concurrent modification.
-    Future.microtask(() => _refreshTray(t));
+    _scheduleRefresh(t);
+  }
+
+  bool _refreshScheduled = false;
+
+  /// Refreshes the tray after the current update is over.
+  ///
+  /// A listener fires while the provider graph is being iterated - that is
+  /// what happens when the core reports a new connection state - and reading
+  /// providers from there is what riverpod reports as a concurrent
+  /// modification. One microtask later the reads are outside that update.
+  void _scheduleRefresh(Translations t) {
+    if (_refreshScheduled) return;
+    _refreshScheduled = true;
+    scheduleMicrotask(() {
+      _refreshScheduled = false;
+      _refreshTray(t);
+    });
   }
 
   Future<void> _refreshTray(Translations t) async {
