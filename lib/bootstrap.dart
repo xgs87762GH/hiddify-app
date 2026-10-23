@@ -56,8 +56,13 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   // rotates it. It is not running yet, which is the only time it can be cut.
   container.read(logPathResolverProvider).trimCoreLog();
 
-  final appInfo = await _init("app info", () => container.read(appInfoProvider.future));
-  await _init("preferences", () => container.read(sharedPreferencesProvider.future));
+  // App info, preferences and translations read different stores and nothing
+  // below uses one before all three are done, so they run side by side.
+  final (appInfo, _, _) = await (
+    _init("app info", () => container.read(appInfoProvider.future)),
+    _init("preferences", () => container.read(sharedPreferencesProvider.future)),
+    _init("translations", () => container.read(translationsProvider.future)),
+  ).wait;
   // The ring starts at a safe default and only now learns the size the user
   // picked, since nothing could be read from disk before this point.
   logRing.capacity = container.read(Preferences.logBufferSize);
@@ -96,10 +101,7 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   }
   // phase 3 — a log file is worth its cost on desktop, or while debugging.
   // On a phone in release it only burns storage nobody reads.
-  await _init(
-    "logging",
-    () async => logFinish(keepFile: debug || PlatformUtils.isDesktop),
-  );
+  await _init("logging", () async => logFinish(keepFile: debug || PlatformUtils.isDesktop));
 
   // marks where this run begins, since the file now spans several
   logMarkRun(appInfo.format());
@@ -113,8 +115,6 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
     () => container.read(profileRepositoryProvider).requireValue.repairProfiles().run(),
     timeout: 3000,
   );
-
-  await _init("translations", () => container.read(translationsProvider.future));
 
   await _safeInit("active profile", () => container.read(activeProfileProvider.future), timeout: 1000);
   await _init(
