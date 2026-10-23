@@ -32,14 +32,16 @@ class ConfigOptionNotifier extends _$ConfigOptionNotifier with AppLogger {
         if (_lastUpdate == null || DateTime.now().difference(_lastUpdate!) > const Duration(milliseconds: 100)) {
           _lastUpdate = DateTime.now();
           if (serviceSingboxOptions?.enableTun != next.enableTun) {
-            loggy.debug("tun option changed, reconnecting");
-            await ref.read(connectionNotifierProvider.notifier).toggleConnection();
-            await ref.read(connectionNotifierProvider.notifier).toggleConnection();
+            loggy.debug("tun option changed, restarting the core");
+            // TUN can only be set when the core starts, so this is a full
+            // restart, not the hot reload the other options take.
+            await _withReconnecting(() => ref.read(connectionNotifierProvider.notifier).restart());
           } else {
             final activeProfile = await ref.read(activeProfileProvider.future);
-            return await ref.read(connectionNotifierProvider.notifier).reconnect(activeProfile);
+            await _withReconnecting(
+              () => ref.read(connectionNotifierProvider.notifier).reconnect(activeProfile),
+            );
           }
-          state = const AsyncData(false);
         }
       }
     }, fireImmediately: true);
@@ -47,6 +49,18 @@ class ConfigOptionNotifier extends _$ConfigOptionNotifier with AppLogger {
   }
 
   DateTime? _lastUpdate;
+
+  /// Publishes true while a change is being applied so the shell can tell the
+  /// user why the tunnel drops for a moment. Without this the state stayed false
+  /// forever and the "reconnecting" toast never ran.
+  Future<void> _withReconnecting(Future<void> Function() apply) async {
+    state = const AsyncData(true);
+    try {
+      await apply();
+    } finally {
+      state = const AsyncData(false);
+    }
+  }
 
   Future<String?> _exportJson(bool excludePrivate) async {
     try {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
-import 'package:hiddify/features/profile/notifier/active_profile_notifier.dart';
 import 'package:hiddify/features/settings/notifier/config_option/config_option_notifier.dart';
 import 'package:hiddify/utils/custom_loggers.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -21,21 +20,12 @@ class _ConnectionWrapperState extends ConsumerState<ConnectionWrapper> with AppL
   Widget build(BuildContext context) {
     ref.listen(connectionNotifierProvider, (_, _) {});
 
-    ref.listen(configOptionNotifierProvider, (previous, next) async {
+    ref.listen(configOptionNotifierProvider, (previous, next) {
       if (next case AsyncData(value: true)) {
+        // The notifier already applies the change; reconnecting a second time
+        // here raced with it and restarted the tunnel twice.
         final t = ref.read(translationsProvider).requireValue;
-        ref
-            .read(inAppNotificationControllerProvider)
-            .showInfoToast(
-              t.connection.reconnectMsg,
-              // actionText: t.connection.reconnect,
-              // callback: () async {
-              //   await ref
-              //       .read(connectionNotifierProvider.notifier)
-              //       .reconnect(await ref.read(activeProfileProvider.future));
-              // },
-            );
-        await ref.read(connectionNotifierProvider.notifier).reconnect(await ref.read(activeProfileProvider.future));
+        ref.read(inAppNotificationControllerProvider).showInfoToast(t.connection.reconnectMsg);
       }
     });
 

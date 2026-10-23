@@ -38,7 +38,10 @@ sealed class CoreStatus with _$CoreStatus {
       case "HotReloading":
         return const CoreHotReloading();
       default:
-        throw Exception("unexpected status [$event]");
+        // Throwing here kills the status stream: the listener catches it, cancels
+        // the subscription, and every rearm throws again. An unknown status is a
+        // stop we cannot explain, which the UI can show, not a fatal error.
+        return CoreStatus.stopped(alert: CoreAlert.unknown, message: "unexpected status [$event]");
     }
   }
   factory CoreStatus.fromCoreInfo(CoreInfoResponse event) {
@@ -75,7 +78,7 @@ sealed class CoreStatus with _$CoreStatus {
       case CoreStates.HOT_RELOADING:
         return const CoreHotReloading();
       default:
-        throw Exception("unexpected status [$event]");
+        return CoreStatus.stopped(alert: CoreAlert.unknown, message: event.message);
     }
   }
 

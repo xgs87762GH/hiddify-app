@@ -134,7 +134,12 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
             .read(dialogNotifierProvider.notifier)
             .showCustomAlertFromErr(err.present(ref.read(translationsProvider).requireValue));
       }).run();
+      return;
     }
+    // Reconnecting only means something while the tunnel is up. Switching the
+    // active profile mid-connect used to be dropped here without a trace, and
+    // the new profile silently never took effect.
+    loggy.warning("ignoring reconnect while status is [$state]");
   }
 
   Future<void> abortConnection() async {
@@ -151,14 +156,28 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
   final _singleStart = SingleCall();
 
   Future<void> _connect() async {
-    _singleStart.run(
+    // Awaited: callers restart the core by stopping and starting again, and
+    // that only works if this returns when the connect actually finished
+    // instead of while it is still running in the background.
+    if (_singleStart.isRunning) {
+      loggy.debug("connect called while another connect/disconnect is still running, ignoring");
+    }
+    await _singleStart.run<bool>(
       () async {
         await _connectThrottled();
+        return true;
       },
-      onIgnored: () {
-        loggy.debug("connect called while another connect/disconnect is still running, ignoring");
-      },
+      onIgnored: false,
     );
+  }
+
+  /// Stops and starts the core again, for an option the running core cannot
+  /// apply while it is up (TUN). Toggling twice lost the second call: it
+  /// arrived while the status was still Connecting and was dropped as a bounce,
+  /// leaving the tunnel either down or up with the old option.
+  Future<void> restart() async {
+    await _disconnect();
+    await _connect();
   }
 
   Future<void> _connectThrottled() async {
@@ -211,6 +230,8 @@ bool serviceRunning(Ref ref) {
 
 class SingleCall {
   bool _running = false;
+
+  bool get isRunning => _running;
 
   Future<T> run<T>(Future<T> Function() task, {required T onIgnored}) async {
     if (_running) return onIgnored;

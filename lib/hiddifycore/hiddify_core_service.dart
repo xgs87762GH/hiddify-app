@@ -246,7 +246,11 @@ class HiddifyCoreService with InfraLogger {
         loggy.error("failed to stop bg core: $e");
         // left("failed to stop core: $e");
       }
-      if (!await core.stop()) {}
+      if (!await core.stop()) {
+        // The core refused to stop; the state below is set anyway, so at least
+        // leave a trace instead of dropping the only signal we get.
+        loggy.error("core reported a failure while stopping");
+      }
       statusController.add(currentState = const CoreStatus.stopped());
       if (errMsg.isNotEmpty) return left(errMsg);
       return right(unit);
