@@ -1,12 +1,15 @@
 name: CI
 on:
-  # pull_request:
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
-  #     - 'test.configs/**'
-  #     - '.vscode/'
-  #     - 'appcast.xml'
+  # Fork note: upstream keeps this trigger disabled because every push to their
+  # branches already runs CI. On a fork the feature branches are where the work
+  # happens, so a pull request into this repo runs the same checks. The branch
+  # list below stays untouched on purpose.
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.vscode/'
+      - 'appcast.xml'
   push:
     branches:
        - main
