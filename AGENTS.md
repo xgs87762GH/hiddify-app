@@ -28,6 +28,7 @@ git push origin main
 - **不动 `pubspec.yaml` 的 `dependency_overrides: build_config ^1.4.0`**，删掉 build_runner 会起不来。
 - **`hiddify-core` 子模块**由 `D:\env\...` 的 Go 工具链构建，`go.mod`/`go.sum` 的改动只在有明确任务时提交。
 - **提交前必跑**：`flutter analyze`（0 issue）与 `flutter test`（全绿）。只报成功，不报跳过。
+- **StreamProvider 没有 `.future` 可等**：`connectionNotifierProvider` / `activeProxyNotifierProvider` / `proxiesOverviewNotifierProvider` 的 build 返回 Stream，`.future` 等的是**首个事件**，冷启动时 core 刚起来、事件秒级后才到。要当前值用 `valueOrNull`，要持续同步用 `ref.listen`；`fireImmediately` 的回调若在 build 里 `ref.read` 其他 provider，会触发 riverpod 的 `Concurrent modification during iteration`，首次渲染用 `Future.microtask` 挪出 build。
 - **升级 Flutter/Dart SDK 后先 `flutter clean`**，否则缓存的旧版 Impeller shader 会让测试报 `Unsupported runtime stages format version`。
 
 ## 三、提交规范
