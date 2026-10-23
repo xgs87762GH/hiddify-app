@@ -47,10 +47,13 @@ git push origin main
 - **不要 `flutter clean` 后用默认方式构建**：clean 只删 `build/`，上面的 sentry 源码树必须重新准备。
 - Windows 打包：`fastforge package --platform windows --targets exe|msix`，需把 flutter bin 加进 `PATH`、设 `INNO_SETUP_PATH`；MSIX 用自签证书 `CN=Hiddify-Test`（密码 1234，`windows/sign.pfx`，已 gitignore）。打包前必须 `taskkill /F /IM Hiddify.exe`。
 - **`windows/packaging/msix/make_config.yaml` 被 .gitignore 排除**（含证书密码），换机后需重新配置：版本号 `msix_version` 与 pubspec 手工同步，并且必须加 `signtool_options: /f windows\sign.pfx /p 1234 /fd SHA256`——msix 工具默认走 `http://timestamp.digicert.com` 时间戳，该地址不可达时整个 MSIX 打包失败在签名一步。
-- 版本号在 `pubspec.yaml`（`5.0.1+50001`），MSIX 版本由 `.github/change_version.sh` 同步，不要手改 `make_config.yaml` 里的 `msix_version`。
+- 版本号在 `pubspec.yaml`（`5.0.2+50002`），MSIX 版本由 `.github/change_version.sh` 同步，不要手改 `make_config.yaml` 里的 `msix_version`。
+- **本机（Windows）只能产出 Windows 与 Web 两种包**：Windows 用 fastforge（exe / msix），Web 用 `flutter build web --release` 后把 `build/web` 压成 zip（约 19MB，构建时会报 wasm dry-run 与 `CupertinoIcons` 字体缺失警告，均为既有现象，不影响产物）。
+- **Android 在本机不具备构建条件**：`compileSdkVersion 36` / `targetSdkVersion 36` / `ndkVersion 28.2.13676358`，而本机只有 `platforms;android-34`、`build-tools;34.0.0`、`ndk;26.1.10909125`；且 `android/app/libs` 只有 `.gitkeep`——Go 内核的 `libcore.aar` 由外部（hiddify-core 发布产物）提供，缺失时打出的 APK 能装但启动即崩，不要在本地产出这种包。要补的话需装 SDK 36 / build-tools 36 / NDK 28（`dl.google.com` 需可达）并放入内核 AAR，或交给 CI。
+- macOS / iOS / Linux 桌面包必须在对应宿主机上构建（Linux 桌面虽已开 feature flag，但 Windows 上没有 clang/GTK 工具链）。
 
 ## 五、当前状态速查（更新于 2026-10-23）
 
 - 主分支：`feat/ui-layout-and-fixes`，已推送；`main` 与官方 `4b99aa68` 一致。
-- 应用版本 5.0.1+50001；安装包在 `dist/`（setup.exe / msix / zip）。
+- 应用版本 5.0.2+50002；安装包在 `dist/`（setup.exe / msix / windows zip / web zip）。
 - 已知遗留：代理列表测速节流 300ms（改它要同步改 `proxies_overview_notifier_test.dart` 的 pump 时长）；`hiddify-core.dll` 86MB 未做裁剪；UI 测试已覆盖 `AppLayout`、首页两栏、代理网格列数。
