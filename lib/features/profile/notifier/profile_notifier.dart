@@ -52,14 +52,18 @@ class AddProfileNotifier extends _$AddProfileNotifier with AppLogger {
           }
       }
     });
-    ref.onDispose(() {
-      if (!(_cancelToken?.isCancelled ?? true)) _cancelToken?.cancel();
-    });
     return const AsyncData(null);
   }
 
   ProfileRepository get _profilesRepo => ref.read(profileRepositoryProvider).requireValue;
   CancelToken? _cancelToken;
+
+  /// Overwriting the field would orphan the request already in flight, leaving
+  /// it running with nothing left able to stop it, so it is cancelled first.
+  CancelToken _renewCancelToken() {
+    if (!(_cancelToken?.isCancelled ?? true)) _cancelToken?.cancel();
+    return _cancelToken = CancelToken();
+  }
 
   Future<void> addClipboard(String rawInput) async {
     if (state.isLoading) return;
@@ -77,7 +81,7 @@ class AddProfileNotifier extends _$AddProfileNotifier with AppLogger {
         task = _profilesRepo.upsertRemote(
           rs.url,
           userOverride: rs.name.isNotEmpty ? UserOverride(name: rs.name) : null,
-          cancelToken: _cancelToken = CancelToken(),
+          cancelToken: _renewCancelToken(),
         );
       } else {
         loggy.debug("adding profile, content");

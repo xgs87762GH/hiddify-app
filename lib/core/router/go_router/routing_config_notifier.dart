@@ -107,7 +107,7 @@ class RoutingConfigNotifier extends _$RoutingConfigNotifier {
           final path = uri.path + (uri.hasQuery ? "?${uri.query}" : "");
           return path;
         } else if (state.matchedLocation.contains('chain-options') &&
-            (ref.watch(hasAnyProfileProvider).value == false)) {
+            (ref.read(hasAnyProfileProvider).value == false)) {
           // Prevent showing chainOptions while hasAnyProfile == false
           return '/settings';
         }
