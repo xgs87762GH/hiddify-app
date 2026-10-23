@@ -121,14 +121,10 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   // so it waits for the repository in the background instead of holding the
   // first frame for up to three seconds.
   unawaited(
-    _safeInit(
-      "profile repair",
-      () async {
-        await container.read(profileRepositoryProvider.future);
-        await container.read(profileRepositoryProvider).requireValue.repairProfiles().run();
-      },
-      timeout: 3000,
-    ),
+    _safeInit("profile repair", () async {
+      await container.read(profileRepositoryProvider.future);
+      await container.read(profileRepositoryProvider).requireValue.repairProfiles().run();
+    }, timeout: 3000),
   );
 
   // The profile data is what the rest of the startup reads. Requesting these
@@ -137,7 +133,10 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   final (_, _, _, _) = await (
     _init("profile repository", () => container.read(profileRepositoryProvider.future)),
     _safeInit("active profile", () => container.read(activeProfileProvider.future), timeout: 1000),
-    _init("chain profile extra security", () => container.read(chainProfileNotifierProvider(ChainType.extraSecurity).future)),
+    _init(
+      "chain profile extra security",
+      () => container.read(chainProfileNotifierProvider(ChainType.extraSecurity).future),
+    ),
     _init("chain profile unblocker", () => container.read(chainProfileNotifierProvider(ChainType.unblocker).future)),
   ).wait;
   await _safeInit("hiddify-core", () => container.read(hiddifyCoreServiceProvider).init());
@@ -153,7 +152,11 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
         () => container.read(connectionNotifierProvider.notifier).restoreConnectionOnStartup(),
         timeout: 5000,
       );
-      await _safeInit("system tray", () => container.read(systemTrayNotifierProvider.future), timeout: 1000);
+      // The tray reads three providers before its first native call, which on a
+      // cold release start takes longer than the second this used to allow; the
+      // result was a tray that never appeared. It is not on the critical path,
+      // so the timeout only stops a hang, it does not rush the work.
+      await _safeInit("system tray", () => container.read(systemTrayNotifierProvider.future), timeout: 5000);
     }
 
     if (PlatformUtils.isAndroid) {

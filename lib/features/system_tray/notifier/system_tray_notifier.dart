@@ -28,30 +28,29 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
       trayManager.addListener(this);
       listenerAdded = true;
     }
-    await _initializeTray();
+    final t = await ref.watch(translationsProvider.future);
+    // Neither the proxy stream nor the connection stream has emitted yet on a
+    // cold start - the core has just come up - and waiting for their first
+    // event is what used to hold the tray until its timeout. The tray renders
+    // from whatever the streams hold right now, and the listeners keep it in
+    // sync from then on, which it never did before beyond the first render.
+    ref.listen(activeProxyNotifierProvider, (_, _) => _refreshTray(t));
+    ref.listen(connectionNotifierProvider, (_, _) => _refreshTray(t));
+    // The first render is scheduled rather than fired from a listener: a
+    // fireImmediately callback would read providers while the graph is still
+    // being iterated, which riverpod reports as a concurrent modification.
+    Future.microtask(() => _refreshTray(t));
   }
 
-  Future<void> _initializeTray() async {
-    final t = await ref.watch(translationsProvider.future);
-    final urlTestDelay = await ref
-        .watch(activeProxyNotifierProvider.future)
-        .catchError((e) {
-          loggy.warning("error getting active proxy", e);
-          return OutboundInfo(urlTestDelay: 0);
-        })
-        .then((connection) => connection.urlTestDelay);
-    final connection = await ref
-        .watch(connectionNotifierProvider.future)
-        .catchError((e) {
-          loggy.warning("error getting connection status", e);
-          return const ConnectionStatus.disconnected();
-        })
-        .then((connection) => _modifyConnectionStatus(connection, urlTestDelay));
-    final serviceMode = ref.watch(ConfigOptions.serviceMode);
+  Future<void> _refreshTray(Translations t) async {
+    final proxy = ref.read(activeProxyNotifierProvider).valueOrNull ?? OutboundInfo(urlTestDelay: 0);
+    final connection = ref.read(connectionNotifierProvider).valueOrNull ?? const ConnectionStatus.disconnected();
+    final status = _modifyConnectionStatus(connection, proxy.urlTestDelay);
+    final serviceMode = ref.read(ConfigOptions.serviceMode);
 
-    await trayManager.setIcon(_trayIconPath(connection), isTemplate: PlatformUtils.isMacOS);
-    if (!PlatformUtils.isLinux) await trayManager.setToolTip(_trayTooltip(connection, urlTestDelay, t));
-    await trayManager.setContextMenu(_trayMenu(connection, serviceMode, t));
+    await trayManager.setIcon(_trayIconPath(status), isTemplate: PlatformUtils.isMacOS);
+    if (!PlatformUtils.isLinux) await trayManager.setToolTip(_trayTooltip(status, proxy.urlTestDelay, t));
+    await trayManager.setContextMenu(_trayMenu(status, serviceMode, t));
   }
 
   Menu _trayMenu(ConnectionStatus connection, ServiceMode serviceMode, Translations t) => Menu(
@@ -156,176 +155,3 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
     await trayManager.popUpContextMenu();
   }
 }
-
-// @Riverpod(keepAlive: true)
-// class SystemTrayNotifier extends _$SystemTrayNotifier with AppLogger {
-//   @override
-//   Future<void> build() async {
-//     if (!PlatformUtils.isDesktop) return;
-
-//     final activeProxy = await ref.watch(activeProxyNotifierProvider.future);
-//     final delay = activeProxy.urlTestDelay;
-//     final newConnectionStatus = delay > 0 && delay < 65000;
-//     ConnectionStatus connection;
-//     try {
-//       connection = await ref.watch(connectionNotifierProvider.future);
-//     } catch (e) {
-//       loggy.warning("error getting connection status", e);
-//       connection = const ConnectionStatus.disconnected();
-//     }
-
-//     final t = await ref.watch(translationsProvider.future);
-
-//     var tooltip = Constants.appName;
-//     final serviceMode = ref.watch(ConfigOptions.serviceMode);
-//     if (connection is Disconnected) {
-//       setIcon(connection);
-//     } else if (newConnectionStatus) {
-//       setIcon(const Connected());
-//       tooltip = "$tooltip - ${connection.present(t)}";
-//       if (newConnectionStatus) {
-//         tooltip = "$tooltip : ${delay}ms";
-//       } else {
-//         tooltip = "$tooltip : -";
-//       }
-//       // else if (delay>1000)
-//       //   SystemTrayNotifier.setIcon(timeout ? Disconnecting() : Connecting());
-//     } else {
-//       setIcon(const Disconnecting());
-//       tooltip = "$tooltip - ${connection.present(t)}";
-//     }
-//     if (Platform.isMacOS) {
-//       windowManager.setBadgeLabel("${delay}ms");
-//     }
-//     if (!Platform.isLinux) await trayManager.setToolTip(tooltip);
-
-//     // final destinations = <(String label, String location)>[
-//     //   (t.home.pageTitle, const HomeRoute().location),
-//     //   (t.proxies.pageTitle, const ProfilesOverviewRoute().location),
-//     //   (t.logs.title, const LogsOverviewRoute().location),
-//     //   // (t.settings.pageTitle, const SettingsRoute().location),
-//     //   (t.about.pageTitle, const AboutRoute().location),
-//     // ];
-
-//     // loggy.debug('updating system tray');
-
-//     final menu = Menu(
-//       items: [
-//         MenuItem(
-//           label: t.tray.dashboard,
-//           onClick: (_) async {
-//             await ref.read(windowNotifierProvider.notifier).open();
-//           },
-//         ),
-//         MenuItem.separator(),
-//         MenuItem.checkbox(
-//           label: switch (connection) {
-//             Disconnected() => t.tray.status.connect,
-//             Connecting() => t.tray.status.connecting,
-//             Connected() => t.tray.status.disconnect,
-//             Disconnecting() => t.tray.status.disconnecting,
-//           },
-//           // checked: connection.isConnected,
-//           checked: false,
-//           disabled: connection.isSwitching,
-//           onClick: (_) async {
-//            await ref.read(connectionNotifierProvider.notifier).toggleConnection();
-//          },
-//        ),
-//         MenuItem.separator(),
-//         MenuItem(
-//           label: t.config.serviceMode,
-//           icon: Assets.images.trayIconIco,
-//           disabled: true,
-//         ),
-
-//         ...ServiceMode.values.map(
-//           (e) => MenuItem.checkbox(
-//             checked: e == serviceMode,
-//             key: e.name,
-//             label: e.present(t),
-//             onClick: (menuItem) async {
-//               final newMode = ServiceMode.values.byName(menuItem.key!);
-//               loggy.debug("switching service mode: [$newMode]");
-//               await ref.read(ConfigOptions.serviceMode.notifier).update(newMode);
-//             },
-//           ),
-//         ),
-
-//         // MenuItem.submenu(
-//         //   label: t.tray.open,
-//         //   submenu: Menu(
-//         //     items: [
-//         //       ...destinations.map(
-//         //         (e) => MenuItem(
-//         //           label: e.$1,
-//         //           onClick: (_) async {
-//         //             await ref.read(windowNotifierProvider.notifier).open();
-//         //             ref.read(routerProvider).go(e.$2);
-//         //           },
-//         //         ),
-//         //       ),
-//         //     ],
-//         //   ),
-//         // ),
-//         MenuItem.separator(),
-//         MenuItem(
-//           label: t.tray.quit,
-//           onClick: (_) async {
-//             return ref.read(windowNotifierProvider.notifier).quit();
-//           },
-//         ),
-//       ],
-//     );
-
-//     await trayManager.setContextMenu(menu);
-//   }
-
-//   static void setIcon(ConnectionStatus status) {
-//     if (!PlatformUtils.isDesktop) return;
-//     trayManager
-//         .setIcon(
-//           _trayIconPath(status),
-//           isTemplate: Platform.isMacOS,
-//         )
-//         .asStream();
-//   }
-
-//   static String _trayIconPath(ConnectionStatus status) {
-//     if (Platform.isWindows) {
-//       final Brightness brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-//       final isDarkMode = brightness == Brightness.dark;
-//       switch (status) {
-//         case Connected():
-//           return Assets.images.trayIconConnectedIco;
-//         case Connecting():
-//           return Assets.images.trayIconDisconnectedIco;
-//         case Disconnecting():
-//           return Assets.images.trayIconDisconnectedIco;
-//         case Disconnected():
-//           if (isDarkMode) {
-//             return Assets.images.trayIconIco;
-//           } else {
-//             return Assets.images.trayIconDarkIco;
-//           }
-//       }
-//     }
-//     // const isDarkMode = false;
-//     switch (status) {
-//       case Connected():
-//         return Assets.images.trayIconConnectedPng.path;
-//       case Connecting():
-//         return Assets.images.trayIconDisconnectedPng.path;
-//       case Disconnecting():
-//         return Assets.images.trayIconDisconnectedPng.path;
-//       case Disconnected():
-//         // if (isDarkMode) {
-//         //   return Assets.images.trayIconDarkPng.path;
-//         // } else {
-//         //   return Assets.images.trayIconPng.path;
-//         // }
-//         return Assets.images.trayIconPng.path;
-//     }
-//     // return Assets.images.trayIconPng.path;
-//   }
-// }
