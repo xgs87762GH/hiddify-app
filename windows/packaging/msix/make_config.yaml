@@ -1,7 +1,7 @@
 display_name: Hiddify
 publisher_display_name: Hiddify
 identity_name: Hiddify.HiddifyNext
-msix_version: 5.0.1.0
+msix_version: 5.0.2.0
 logo_path: windows\runner\resources\app_icon.ico
 capabilities: internetClient, internetClientServer, privateNetworkClientServer
 languages: ar, en-us, es-es, fa-ir, fr-fr, id-id, pt-br, ru-ru, tr-tr, zh-cn, zh-tw
@@ -22,3 +22,7 @@ startup_task:
 # The official package would use these instead:
 # publisher: CN=8CB43675-F44B-4AA5-9372-E8727781BDC4
 # certificate_password:
+
+# The msix tool hardcodes the digicert timestamp server, which this network
+# cannot reach, so the signing step fails unless these options replace it.
+signtool_options: /f windows\sign.pfx /p 1234 /fd SHA256
