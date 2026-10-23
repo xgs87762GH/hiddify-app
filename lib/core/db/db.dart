@@ -38,6 +38,8 @@ class Db extends _$Db with InfraLogger {
       onUpgrade: stepByStep(
         from1To2: (m, schema) async {
           await m.alterTable(
+            // TableMigration is still flagged experimental upstream in drift.
+            // ignore: experimental_member_use
             TableMigration(
               schema.profileEntries,
               columnTransformer: {schema.profileEntries.type: const Constant<String>("remote")},
@@ -66,10 +68,7 @@ class Db extends _$Db with InfraLogger {
           await m.createTable(schema.appProxyEntries);
         },
         from5To6: (m, schema) async {
-          final profileOverrideExists = await _columnExists(
-            schema.profileEntries.actualTableName,
-            'profile_override',
-          );
+          final profileOverrideExists = await _columnExists(schema.profileEntries.actualTableName, 'profile_override');
           if (profileOverrideExists) {
             await m.dropColumn(schema.profileEntries, 'profile_override');
           }

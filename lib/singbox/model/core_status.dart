@@ -16,8 +16,8 @@ sealed class CoreStatus with _$CoreStatus {
   // the running core applies a new config; the connection stays up
   const factory CoreStatus.hotReloading() = CoreHotReloading;
 
-  factory CoreStatus.fromEvent(dynamic event) {
-    event = event as Map<String, dynamic>?;
+  factory CoreStatus.fromEvent(dynamic raw) {
+    final event = raw as Map<String, dynamic>?;
     switch (event?["status"]) {
       case "Stopped":
         final alertstr = event?["alert"] as String?;

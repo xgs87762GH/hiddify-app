@@ -70,7 +70,7 @@ Future<void> pumpHome(WidgetTester tester, double width) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(home: const HomePage()),
+      child: const MaterialApp(home: HomePage()),
     ),
   );
   // A second pump lets the async fakes land; pumpAndSettle never settles here

@@ -20,22 +20,22 @@ class AnimatedText extends Text {
     return AnimatedSwitcher(
       duration: duration,
       transitionBuilder: (child, animation) {
-        child = FadeTransition(opacity: animation, child: child);
+        Widget wrapped = FadeTransition(opacity: animation, child: child);
         if (size) {
-          child = SizeTransition(
+          wrapped = SizeTransition(
             axis: Axis.horizontal,
             fixedCrossAxisSizeFactor: 1,
             sizeFactor: Tween<double>(begin: 0.88, end: 1).animate(animation),
-            child: child,
+            child: wrapped,
           );
         }
         if (slide) {
-          child = SlideTransition(
+          wrapped = SlideTransition(
             position: Tween<Offset>(begin: const Offset(0.0, -0.2), end: Offset.zero).animate(animation),
-            child: child,
+            child: wrapped,
           );
         }
-        return child;
+        return wrapped;
       },
       child: Text(data!, key: ValueKey<String>(data!), style: style),
     );
