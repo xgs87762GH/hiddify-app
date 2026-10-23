@@ -81,9 +81,12 @@ void main() {
   ];
 
   /// The rows the page shows after the core streams [items], with [selected] picked (the first by default).
+  ///
+  /// The notifier throttles its stream to 300ms, so the pump has to cross that
+  /// window before the sorted list reaches the state.
   Future<List<String>> stream(WidgetTester tester, List<OutboundInfo> items, {String? selected}) async {
     repository.updates.add(right(OutboundGroup(tag: 'select', selected: selected ?? items.first.tag, items: items)));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     return rows();
   }
 

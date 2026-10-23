@@ -81,23 +81,6 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
     }
     Timer? resubscribe;
     ref.onDispose(() => resubscribe?.cancel());
-    // yield* ref
-    //     .watch(proxyRepositoryProvider)
-    //     .watchProxies()
-    //     .throttleTime(
-    //       const Duration(milliseconds: 100),
-    //       leading: false,
-    //       trailing: true,
-    //     )
-    //     .map(
-    //       (event) => event.getOrElse(
-    //         (err) {
-    //           loggy.warning("error receiving proxies", err);
-    //           throw err;
-    //         },
-    //       ),
-    //     )
-    //     .asyncMap((proxies) async => _sortOutbounds(proxies, sortBy));
     return ref
         .watch(proxyRepositoryProvider)
         .watchProxies()
@@ -122,6 +105,11 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
         // A null payload would blank the page, contradicting the promise above
         // that the last list stays on screen, so it is dropped here.
         .where((proxies) => proxies != null)
+        // Sorting reacts to every event, and a URL test emits one ping at a
+        // time: without this window the whole list re-sorts once per proxy,
+        // which reads as shuffling. Events inside 300ms merge into one sort.
+        // The fake-async tests pump past this window on purpose.
+        .throttleTime(const Duration(milliseconds: 300), leading: false, trailing: true)
         .doOnData((_) => _resubscribeDelay = _minResubscribeDelay)
         .doOnDone(() {
           // gRPC ends the stream when its connection drops, e.g. once iOS suspends the app.
@@ -140,49 +128,6 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
   static const _minResubscribeDelay = Duration(seconds: 2);
   static const _maxResubscribeDelay = Duration(seconds: 30);
   Duration _resubscribeDelay = _minResubscribeDelay;
-
-  // Future<List<OutboundGroup>> _sortOutbounds(
-  //   List<OutboundGroup> proxies,
-  //   ProxiesSort sortBy,
-  // ) async {
-  //   final groupWithSelected = {
-  //     for (final o in proxies) o.tag: o.selected,
-  //   };
-  //   final sortedProxies = <OutboundGroup>[];
-  //   for (final group in proxies) {
-  //     final sortedItems = switch (sortBy) {
-  //       ProxiesSort.name => group.items.sortedWith((a, b) {
-  //           if (a.isGroup && !b.isGroup) return -1;
-  //           if (!a.isGroup && b.isGroup) return 1;
-  //           return a.tag.compareTo(b.tag);
-  //         }),
-  //       ProxiesSort.delay => group.items.sortedWith((a, b) {
-  //           if (a.isGroup && !b.isGroup) return -1;
-  //           if (!a.isGroup && b.isGroup) return 1;
-
-  //           final ai = a.urlTestDelay;
-  //           final bi = b.urlTestDelay;
-  //           if (ai == 0 && bi == 0) return -1;
-  //           if (ai == 0 && bi > 0) return 1;
-  //           if (ai > 0 && bi == 0) return -1;
-  //           return ai.compareTo(bi);
-  //         }),
-  //       ProxiesSort.unsorted => group.items,
-  //     };
-  //     final items = <OutboundInfo>[];
-  //     for (final item in sortedItems) {
-  //       // if (groupWithSelected.keys.contains(item.tag)) {
-  //       //   items.add(item.copyWith(selectedTag: groupWithSelected[item.tag]));
-  //       // } else {
-  //       items.add(item);
-  //       // }
-  //     }
-  //     group.items.clear();
-  //     group.items.addAll(items);
-  //     sortedProxies.add(group);
-  //   }
-  //   return sortedProxies;
-  // }
 
   /// The proxy picked on this page and the row it was in. Cleared by a new connection or sort.
   ({String tag, int index})? _pinned;
@@ -230,30 +175,6 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
     proxies.items.addAll(items);
     return proxies;
   }
-
-  // Future<void> changeProxy(String groupTag, String outboundTag) async {
-  //   loggy.debug(
-  //     "changing proxy, group: [$groupTag] - outbound: [$outboundTag]",
-  //   );
-  //   if (state case AsyncData(value: final outbounds)) {
-  //     await ref.read(hapticServiceProvider.notifier).lightImpact();
-  //     await ref.read(proxyRepositoryProvider).selectProxy(groupTag, outboundTag).getOrElse((err) {
-  //       loggy.warning("error selecting outbound", err);
-  //       throw err;
-  //     }).run();
-  //     final outboundg = outbounds.where((e) => e.tag == groupTag).firstOrNull;
-  //     if (outboundg != null) {
-  //       final newselected = outboundg.items.where((e) => e.tag == outboundTag).firstOrNull;
-  //       if (newselected != null) {
-  //         newselected.isSelected = true;
-  //         outboundg.selected = newselected;
-  //       }
-  //     }
-  //     state = AsyncData(
-  //       [...outbounds],
-  //     ).copyWithPrevious(state);
-  //   }
-  // }
 
   Future<void> changeProxy(String groupTag, String outboundTag) async {
     loggy.debug("changing proxy, group: [$groupTag] - outbound: [$outboundTag]");
