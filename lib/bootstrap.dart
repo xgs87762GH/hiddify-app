@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:hiddify/core/analytics/analytics_controller.dart';
@@ -36,6 +37,14 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async {
   if (!kIsWeb) {
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  }
+  if (PlatformUtils.isDesktop) {
+    // The runner shows the window the moment the engine starts and the app
+    // paints nothing on it until it renders its first frame. The boot below
+    // takes seconds, so the window goes away right now and comes back once
+    // there is something to show: an empty grey rectangle reads as a broken
+    // app, and the user waits on it.
+    await hideWindowUntilReady();
   }
   // phase 1 — console and the in-memory history, before the folders are known
   logStart();
@@ -97,11 +106,6 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
         await container.read(windowNotifierProvider.future);
         final silentStart = container.read(Preferences.silentStart);
         Logger.bootstrap.debug("silent start [${silentStart ? "Enabled" : "Disabled"}]");
-        if (!silentStart) {
-          await container.read(windowNotifierProvider.notifier).show(focus: false);
-        } else {
-          Logger.bootstrap.debug("silent start, remain hidden accessible via tray");
-        }
       }),
       // phase 3 — a log file is worth its cost on desktop, or while debugging.
       // On a phone in release it only burns storage nobody reads.
@@ -146,19 +150,6 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   container.listen(activeProxyNotifierProvider, (previous, next) {});
 
   if (!kIsWeb) {
-    if (PlatformUtils.isDesktop) {
-      await _safeInit(
-        "restore previous connection",
-        () => container.read(connectionNotifierProvider.notifier).restoreConnectionOnStartup(),
-        timeout: 5000,
-      );
-      // The tray reads three providers before its first native call, which on a
-      // cold release start takes longer than the second this used to allow; the
-      // result was a tray that never appeared. It is not on the critical path,
-      // so the timeout only stops a hang, it does not rush the work.
-      await _safeInit("system tray", () => container.read(systemTrayNotifierProvider.future), timeout: 5000);
-    }
-
     if (PlatformUtils.isAndroid) {
       await _safeInit("android display mode", () async {
         await FlutterDisplayMode.setHighRefreshRate();
@@ -179,7 +170,52 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   if (!kIsWeb) {
     FlutterNativeSplash.remove();
   }
+
+  if (!kIsWeb && PlatformUtils.isDesktop) {
+    // The window comes back only now: the first frame is on the screen, so
+    // the user sees the app and not an empty surface. A silent start keeps it
+    // hidden, reachable from the tray.
+    await _waitForFirstPaint();
+    if (!container.read(Preferences.silentStart)) {
+      await container.read(windowNotifierProvider.notifier).show(focus: false);
+      Logger.bootstrap.debug("showing app window after the first frame");
+    }
+    // The tunnel and the tray come up after the window is on the screen. Both
+    // take seconds - the core starts, the tunnel connects - and the user can
+    // watch the app while that happens instead of staring at an empty window.
+    await _safeInit(
+      "restore previous connection",
+      () => container.read(connectionNotifierProvider.notifier).restoreConnectionOnStartup(),
+      timeout: 5000,
+    );
+    // The tray reads three providers before its first native call, which on a
+    // cold release start takes longer than the second this used to allow; the
+    // result was a tray that never appeared. It is not on the critical path,
+    // so the timeout only stops a hang, it does not rush the work.
+    await _safeInit("system tray", () => container.read(systemTrayNotifierProvider.future), timeout: 5000);
+  }
   // SentryFlutter.s(DateTime.now().toUtc());
+}
+
+/// Waits until the first frame is actually on the screen.
+///
+/// [endOfFrame] says the frame was built, not that it was painted: the pixels
+/// reach the window a moment later, and a window shown in between shows an
+/// empty grey surface. The frame timings come back once the raster is done,
+/// which is the first moment the window has something to show.
+Future<void> _waitForFirstPaint() async {
+  final painted = Completer<void>();
+  void onTimings(List<FrameTiming> timings) {
+    if (!painted.isCompleted) painted.complete();
+  }
+
+  SchedulerBinding.instance.addTimingsCallback(onTimings);
+  try {
+    await WidgetsBinding.instance.endOfFrame;
+    await painted.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+  } finally {
+    SchedulerBinding.instance.removeTimingsCallback(onTimings);
+  }
 }
 
 Future<T> _init<T>(String name, Future<T> Function() initializer, {int? timeout}) async {

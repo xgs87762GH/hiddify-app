@@ -16,6 +16,17 @@ part 'window_notifier.g.dart';
 const minimumWindowSize = Size(368, 568);
 const defaultWindowSize = Size(868, 668);
 
+/// Hides the window the runner already put on the screen.
+///
+/// The Windows runner shows the window as soon as the engine starts, and the
+/// app paints nothing on it until it renders its first frame. The boot takes
+/// seconds, so the window is hidden right away and shown again once there is
+/// something to show: an empty grey rectangle reads as a broken app.
+Future<void> hideWindowUntilReady() async {
+  await windowManager.ensureInitialized();
+  await windowManager.hide();
+}
+
 @Riverpod(keepAlive: true)
 class WindowNotifier extends _$WindowNotifier with AppLogger {
   @override
@@ -89,12 +100,11 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
     // way to set the size in the units the geometry was saved in.
     await windowManager.setPosition(window.topLeft / startDpr);
     var dpr = await _settledDpr(targetScale, const Duration(milliseconds: 250));
-    if (!silentStart) {
-      await ref.read(windowNotifierProvider.notifier).show(focus: false);
-      loggy.debug("showing app window on start");
-    } else {
+    if (silentStart) {
       loggy.debug("silent start, remain hidden accessible via tray");
     }
+    // The window itself is shown by the bootstrap once the first frame is on
+    // screen, so nothing here puts an empty surface in front of the user.
     // From here on the user can see the window, so every step below corrects
     // something visible instead of holding the first frame.
     if ((dpr - targetScale).abs() > 0.01) {
