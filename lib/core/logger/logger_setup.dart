@@ -167,6 +167,15 @@ void _toFile(LogRecord r) {
       for (final line in own.toString().split('\n')) {
         writeLogLine('  $line');
       }
+    } else {
+      // A framework error - riverpod, flutter - has no frame of ours in it,
+      // and those frames are the only thing that says where it came from.
+      final raw = r.stackTrace?.toString().split('\n').take(8).toList();
+      if (raw != null) {
+        for (final line in raw) {
+          writeLogLine('  $line');
+        }
+      }
     }
   }
 }
