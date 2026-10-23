@@ -42,6 +42,8 @@ git push origin main
 - Flutter 3.41.9 / Dart 3.11.5，路径 `D:\env\sdk\flutter`（旧版备份 `D:\env\sdk\flutter-3.38.10-bak`，确认稳定后删除）。
 - 另一台开发机在 `F:\DevelopObject\MyProject\hiddify-app`，工具链在 `D:\DevelopEnv`；两台 SDK 版本必须保持一致，否则 `pubspec.lock` 会出现假差异。
 - 中文路径会让分析服务崩溃，跑 analyze / dart 命令时用 ASCII 路径（如 `C:\hiddify-app`）。
+- **`flutter clean` 会删 `build/windows/x64/_deps/sentry-native-src`**，之后 CMake 重新 clone sentry-native 的子模块时 `chromium.googlesource.com` 不可达，构建报 `Unable to generate build files`。恢复方式：从 `https://codeload.github.com/getsentry/sentry-native/tar.gz/refs/tags/0.7.20` 下载源码解压到该目录（`codeload.github.com` 可达，`github.com` 主站和 SSH 均被间歇阻断，ghproxy 镜像证书过期），然后带 `HIDDIFY_SENTRY_NATIVE_SOURCE=<该目录>` 与 `SENTRY_NATIVE_BACKEND=none` 构建。pub cache 里 sentry_flutter 包的 `sentry-native.cmake` 已被 patch 以支持该变量；`pub upgrade` 若重装 sentry_flutter，需要重新打这个补丁。
+- **不要 `flutter clean` 后用默认方式构建**：clean 只删 `build/`，上面的 sentry 源码树必须重新准备。
 - Windows 打包：`fastforge package --platform windows --targets exe|msix`，需把 flutter bin 加进 `PATH`、设 `INNO_SETUP_PATH`；MSIX 用自签证书 `CN=Hiddify-Test`（密码 1234，`windows/sign.pfx`，已 gitignore）。打包前必须 `taskkill /F /IM Hiddify.exe`。
 - 版本号在 `pubspec.yaml`（`5.0.1+50001`），MSIX 版本由 `.github/change_version.sh` 同步，不要手改 `make_config.yaml` 里的 `msix_version`。
 
