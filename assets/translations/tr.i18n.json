@@ -1,5 +1,7 @@
 {
   "common": {
+    "saveFailure": "Bu değişiklik kaydedilemedi",
+    "retry": "Yeniden dene",
     "appTitle": "Hiddify",
     "start": "Başlat",
     "version": "Sürüm",
@@ -644,6 +646,20 @@
       "updateNow": "Şimdi güncelle"
     },
     "confirmation": {
+      "resetOptions": {
+        "title": "Seçenekleri sıfırla",
+        "msg": "Tüm seçenekler varsayılan değerine döner. Devam edilsin mi?"
+      },
+      "resetTunnel": {
+        "title": "VPN profilini sıfırla",
+        "msg": "Yerel VPN profili yeniden oluşturulur. Devam edilsin mi?"
+      },
+      "logs": {
+        "clear": {
+          "title": "Günlükleri temizle",
+          "msg": "Tüm günlükler silinsin mi? Bu işlem geri alınamaz."
+        }
+      },
       "settings": {
         "import": {
           "msg": "Bu işlem tüm yapılandırma seçeneklerinin üzerine içe aktarılan değerleri yazar. Devam edilsin mi?"

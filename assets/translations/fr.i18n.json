@@ -1,5 +1,7 @@
 {
   "common": {
+    "saveFailure": "Échec de la sauvegarde de cette modification",
+    "retry": "Réessayer",
     "appTitle": "Hiddify",
     "start": "Commencer",
     "version": "Version",
@@ -646,6 +648,20 @@
       "updateNow": "Mettre à jour"
     },
     "confirmation": {
+      "resetOptions": {
+        "title": "Réinitialiser les options",
+        "msg": "Toutes les options reviennent à leur valeur par défaut. Continuer ?"
+      },
+      "resetTunnel": {
+        "title": "Réinitialiser le profil VPN",
+        "msg": "Le profil VPN local sera recréé. Continuer ?"
+      },
+      "logs": {
+        "clear": {
+          "title": "Effacer les journaux",
+          "msg": "Supprimer tous les journaux ? Cette action est irréversible."
+        }
+      },
       "settings": {
         "import": {
           "msg": "Cette action écrase toutes les options de configuration avec les valeurs importées. Continuer ?"

@@ -1,5 +1,7 @@
 {
   "common": {
+    "saveFailure": "Tidak dapat menyimpan perubahan ini",
+    "retry": "Coba lagi",
     "appTitle": "Hiddify",
     "start": "Mulai",
     "version": "Versi",
@@ -644,6 +646,20 @@
       "updateNow": "Perbarui sekarang"
     },
     "confirmation": {
+      "resetOptions": {
+        "title": "Setel ulang opsi",
+        "msg": "Semua opsi kembali ke nilai bawaan. Lanjutkan?"
+      },
+      "resetTunnel": {
+        "title": "Setel ulang profil VPN",
+        "msg": "Profil VPN lokal akan dibuat ulang. Lanjutkan?"
+      },
+      "logs": {
+        "clear": {
+          "title": "Bersihkan log",
+          "msg": "Hapus semua log? Tindakan ini tidak dapat dibatalkan."
+        }
+      },
       "settings": {
         "import": {
           "msg": "Ini menimpa semua opsi konfigurasi dengan nilai yang diimpor. Lanjutkan?"

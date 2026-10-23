@@ -1,5 +1,7 @@
 {
   "common": {
+    "saveFailure": "Could not save this change",
+    "retry": "Retry",
     "appTitle": "Hiddify",
     "start": "Start",
     "version": "Version",
@@ -647,6 +649,20 @@
       "updateNow": "Update now"
     },
     "confirmation": {
+      "resetOptions": {
+        "title": "Reset options",
+        "msg": "Every configuration option goes back to its default. Continue?"
+      },
+      "resetTunnel": {
+        "title": "Reset VPN profile",
+        "msg": "The local VPN profile is created again. Continue?"
+      },
+      "logs": {
+        "clear": {
+          "title": "Clear logs",
+          "msg": "Delete every recorded log? This cannot be undone."
+        }
+      },
       "settings": {
         "import": {
           "msg": "This overwrites all configuration options with the imported values. Continue?"

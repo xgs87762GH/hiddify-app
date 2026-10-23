@@ -1,5 +1,7 @@
 {
   "common": {
+    "saveFailure": "Não foi possível salvar esta alteração",
+    "retry": "Tentar novamente",
     "appTitle": "Hiddify",
     "start": "Começar",
     "version": "Versão",
@@ -646,6 +648,20 @@
       "updateNow": "Atualizar agora"
     },
     "confirmation": {
+      "resetOptions": {
+        "title": "Redefinir opções",
+        "msg": "Todas as opções voltam ao valor padrão. Continuar?"
+      },
+      "resetTunnel": {
+        "title": "Redefinir perfil de VPN",
+        "msg": "O perfil de VPN local será criado novamente. Continuar?"
+      },
+      "logs": {
+        "clear": {
+          "title": "Limpar registros",
+          "msg": "Excluir todos os registros? Não é possível desfazer."
+        }
+      },
       "settings": {
         "import": {
           "msg": "Isso sobrescreve todas as opções de configuração com os valores importados. Continuar?"

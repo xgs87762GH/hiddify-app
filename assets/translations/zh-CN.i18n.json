@@ -1,5 +1,7 @@
 {
   "common": {
+    "saveFailure": "无法保存此更改",
+    "retry": "重试",
     "appTitle": "Hiddify",
     "start": "开始",
     "version": "版本",
@@ -644,6 +646,20 @@
       "updateNow": "立即更新"
     },
     "confirmation": {
+      "resetOptions": {
+        "title": "重置选项",
+        "msg": "所有配置项都将恢复为默认值。是否继续？"
+      },
+      "resetTunnel": {
+        "title": "重置 VPN 配置",
+        "msg": "本地 VPN 配置将重新创建。是否继续？"
+      },
+      "logs": {
+        "clear": {
+          "title": "清空日志",
+          "msg": "删除全部已记录日志？此操作无法撤销。"
+        }
+      },
       "settings": {
         "import": {
           "msg": "这会用导入的值覆盖所有配置选项。要继续吗？"
