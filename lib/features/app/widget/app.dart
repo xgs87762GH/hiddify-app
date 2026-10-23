@@ -116,68 +116,6 @@ class App extends HookConsumerWidget with WidgetsBindingObserver, PresLogger {
     );
   }
 
-  // @override
-  // Widget build1(BuildContext context, WidgetRef ref) {
-  //   setupStateListener(ref);
-  //   // setupQuickSettings(ref);
-  //   final router = ref.watch(routerProvider);
-  //   final locale = ref.watch(localePreferencesProvider);
-  //   final themeMode = ref.watch(themePreferencesProvider);
-  //   final theme = AppTheme(themeMode, locale.preferredFontFamily);
-  //   final upgrader = ref.watch(upgraderProvider);
-
-  //   ref.listen(foregroundProfilesUpdateNotifierProvider, (_, __) {});
-
-  //   return WindowWrapper(
-  //     TrayWrapper(
-  //       ShortcutWrapper(
-  //         ConnectionWrapper(
-  //           PlatformProvider(
-  //               settings: PlatformSettingsData(
-  //                 iosUsesMaterialWidgets: true,
-  //               ),
-  //               builder: (context) => DynamicColorBuilder(
-  //                     builder: (ColorScheme? lightColorScheme, ColorScheme? darkColorScheme) {
-  //                       return PlatformApp.router(
-  //                         routerConfig: router,
-  //                         locale: locale.flutterLocale,
-  //                         supportedLocales: AppLocaleUtils.supportedLocales,
-  //                         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-  //                         debugShowCheckedModeBanner: false,
-  //                         material: (context, platform) => MaterialAppRouterData(
-  //                           theme: theme.lightTheme(lightColorScheme),
-  //                           darkTheme: theme.darkTheme(darkColorScheme),
-  //                           themeMode: themeMode.flutterThemeMode,
-  //                         ),
-  //                         cupertino: (context, platform) {
-  //                           final sysDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
-
-  //                           return CupertinoAppRouterData(theme: theme.cupertinoThemeData(sysDark, lightColorScheme, darkColorScheme));
-  //                         },
-  //                         title: Constants.appName,
-  //                         builder: (context, child) {
-  //                           child = UpgradeAlert(
-  //                             upgrader: upgrader,
-  //                             navigatorKey: router.routerDelegate.navigatorKey,
-  //                             child: child ?? const SizedBox(),
-  //                           );
-  //                           if (kDebugMode && _debugAccessibility) {
-  //                             return AccessibilityTools(
-  //                               checkFontOverflows: true,
-  //                               child: child,
-  //                             );
-  //                           }
-  //                           return child;
-  //                         },
-  //                       );
-  //                     },
-  //                   )),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   void setupStateListener(WidgetRef ref) {
     useEffect(() {
       // The engine calls the listener directly, so a pause is seen even when no frame is drawn in the
