@@ -40,6 +40,26 @@ namespace
     return static_cast<int>(source * scale_factor);
   }
 
+  /// The colour the app itself paints behind its content, taken from the theme
+  /// Windows is in. Used for the strips of client area that are exposed before
+  /// the Flutter view has a frame for them, so that they read as part of the
+  /// app instead of as a hole in it.
+  COLORREF BackgroundColor()
+  {
+    DWORD light_mode = 1;
+    DWORD light_mode_size = sizeof(light_mode);
+    LSTATUS result = RegGetValue(HKEY_CURRENT_USER, kGetPreferredBrightnessRegKey,
+                                kGetPreferredBrightnessRegValue, RRF_RT_REG_DWORD,
+                                nullptr, &light_mode, &light_mode_size);
+
+    if (result == ERROR_SUCCESS && light_mode == 0)
+    {
+      return RGB(0x00, 0x00, 0x00);
+    }
+
+    return RGB(0xF8, 0xF9, 0xFF);
+  }
+
   // Dynamically loads the |EnableNonClientDpiScaling| from the User32 module.
   // This API is only needed for PerMonitor V1 awareness mode.
   void EnableFullDpiSupportIfAvailable(HWND hwnd)
@@ -254,6 +274,20 @@ Win32Window::MessageHandler(HWND hwnd,
       PostQuitMessage(0);
     }
     return 0;
+
+  case WM_ERASEBKGND:
+  {
+    // The class is registered without a background brush, so Windows leaves
+    // whatever the GPU cleared the window to. A client area that grew, or one
+    // whose Flutter frame was lost, then shows as a black band over the app.
+    // Painting the app's own colour keeps those strips looking like the app.
+    HDC device_context = reinterpret_cast<HDC>(wparam);
+    RECT rect = GetClientArea();
+    HBRUSH brush = CreateSolidBrush(BackgroundColor());
+    FillRect(device_context, &rect, brush);
+    DeleteObject(brush);
+    return 1;
+  }
 
   case WM_DPICHANGED:
   {
