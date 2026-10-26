@@ -217,6 +217,7 @@ Future<void> exportLogRing(String path) => writeLinesToFile(path, logRing.record
 
 StreamSubscription<LogRecord>? _consoleSub;
 StreamSubscription<LogRecord>? _fileSub;
+StreamSubscription<LogRecord>? _ringSub;
 
 // -------------------------------------------------------------------- phases
 
@@ -244,8 +245,9 @@ void logStart() {
     _consoleSub = Logger.root.onRecord.listen(_toConsole);
     _printWhereTheLogsAre();
   }
-  // the ring is never detached — it is the history the page reads
-  Logger.root.onRecord.listen(_toRing);
+  // the ring is never detached — it is the history the page reads — but attaching it twice
+  // (a hot restart, or logStart called again) would write every record to it twice.
+  _ringSub ??= Logger.root.onRecord.listen(_toRing);
 }
 
 /// phase 2 — the folders are ready, so the file can be opened

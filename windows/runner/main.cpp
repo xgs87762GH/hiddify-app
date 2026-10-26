@@ -57,23 +57,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   HANDLE hMutexInstance = CreateMutex(NULL, TRUE, L"HiddifyMutex");
-  HWND handle = FindWindowA(NULL, "Hiddify");
+  // GetLastError() has to be read before any other Win32 call overwrites it (FindWindowA below did).
+  const bool already_running = (GetLastError() == ERROR_ALREADY_EXISTS);
 
-  if (GetLastError() == ERROR_ALREADY_EXISTS)
+  if (already_running)
   {
-    flutter::DartProject project(L"data");
-    std::vector<std::string> command_line_arguments = GetCommandLineArguments();
-    project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
-    FlutterWindow window(project);
-    if (window.SendAppLinkToInstance(L"Hiddify"))
+    // The command line was already handed to the running instance by SendAppLinkToInstance above:
+    // just bring its window back. No second FlutterWindow, and the mutex is released before leaving.
+    HWND handle = ::FindWindowA(NULL, "Hiddify");
+    if (handle)
     {
-      return false;
+      WINDOWPLACEMENT place = {sizeof(WINDOWPLACEMENT)};
+      ::GetWindowPlacement(handle, &place);
+      ::ShowWindow(handle, SW_NORMAL);
+      ::SetForegroundWindow(handle);
     }
-
-    WINDOWPLACEMENT place = {sizeof(WINDOWPLACEMENT)};
-    GetWindowPlacement(handle, &place);
-    ShowWindow(handle, SW_NORMAL);
-    return 0;
+    ::ReleaseMutex(hMutexInstance);
+    ::CloseHandle(hMutexInstance);
+    return EXIT_SUCCESS;
   }
 
   // Attach to console when present (e.g., 'flutter run') or create a
@@ -111,6 +112,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   ::CoUninitialize();
-  ReleaseMutex(hMutexInstance);
+  ::ReleaseMutex(hMutexInstance);
+  ::CloseHandle(hMutexInstance);
   return EXIT_SUCCESS;
 }

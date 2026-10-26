@@ -47,8 +47,11 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
 
   Future<bool> isMusl() async {
     try {
-      final result = await Process.run('ldd', ['--version']);
+      // A hung `ldd` (a broken shim, a busy loader) used to block startup with no timeout at all.
+      final result = await Process.run('ldd', ['--version']).timeout(const Duration(seconds: 3));
       return result.stdout.toString().toLowerCase().contains('musl');
+    } on TimeoutException {
+      return false;
     } catch (_) {
       return false;
     }

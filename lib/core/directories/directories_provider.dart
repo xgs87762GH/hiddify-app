@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:hiddify/core/model/directories.dart';
 import 'package:hiddify/core/model/environment.dart';
@@ -59,7 +59,11 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
       if (extDir.existsSync()) return extDir;
       await extDir.create(recursive: true);
       return extDir;
-    } catch (_) {}
+    } catch (e) {
+      // Normal on some devices (scoped storage, a removed SD card): the documents dir still works,
+      // but the fallback should not be invisible when someone reports "my profiles vanished".
+      debugPrint('external storage unavailable, using the documents dir: $e');
+    }
     return getApplicationDocumentsDirectory();
   }
 
