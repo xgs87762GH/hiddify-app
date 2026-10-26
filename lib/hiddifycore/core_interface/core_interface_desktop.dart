@@ -136,6 +136,10 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
 
   @override
   Future<bool> stop() async {
-    return false;
+    // There is no extra stop work on desktop: the core is stopped over gRPC
+    // (bgClient.stop) and runs in-process. Returning false here made
+    // HiddifyCoreService.stop log a bogus "core reported a failure while
+    // stopping" on every shutdown.
+    return true;
   }
 }
