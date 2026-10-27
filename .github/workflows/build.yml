@@ -72,10 +72,35 @@ jobs:
         run: exit 1
 
 
+  # Which publishing targets this fork actually has credentials for. Job level `if` cannot
+  # read `env`, so the answers are computed here and consumed by `needs.*.outputs` below.
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      apple_upload: ${{ steps.check.outputs.apple_upload }}
+      google_play: ${{ steps.check.outputs.google_play }}
+    steps:
+      - id: check
+        env:
+          APPLE_UPLOAD_CERT: ${{ secrets.APPLE_UPLOAD_CERTIFICATE_P12 }}
+          GOOGLE_PLAY_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          [ -n "$APPLE_UPLOAD_CERT" ] && echo "apple_upload=true" >> $GITHUB_OUTPUT || echo "apple_upload=false" >> $GITHUB_OUTPUT
+          [ -n "$GOOGLE_PLAY_JSON" ] && echo "google_play=true" >> $GITHUB_OUTPUT || echo "google_play=false" >> $GITHUB_OUTPUT
+
   build:
     needs: test
     permissions: write-all
     continue-on-error: true
+    # A fork has no signing secrets. Everything that cannot work without them is skipped
+    # instead of failing, so a release still ships what this fork can actually build.
+    env:
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE_P12 != '' }}
+      HAS_APPLE_PROFILE: ${{ secrets.APPLE_MOBILE_PROVISIONING_PROFILES_TARGZ_BASE64 != '' }}
+      HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_SIGNING_KEY != '' }}
+      HAS_SENTRY_AUTH: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+    # macOS needs a real certificate; it fails loudly without one, which is fine because
+    # this job keeps the rest of the pipeline going.
 
     strategy:
       fail-fast: false
@@ -135,14 +160,14 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Import Apple Codesign Certificates
-        if: ${{ inputs.upload-artifact && startsWith(matrix.os,'macos') }}
+        if: ${{ inputs.upload-artifact && startsWith(matrix.os,'macos') && env.HAS_APPLE_CERT == 'true' }}
         uses: apple-actions/import-codesign-certs@v6
         with: 
             p12-file-base64: "${{ secrets.APPLE_CERTIFICATE_P12 }}"
             p12-password: "${{ secrets.APPLE_CERTIFICATE_P12_PASSWORD }}"
 
       - name: Import Apple Mobile Provisioning Profile
-        if: ${{ inputs.upload-artifact && startsWith(matrix.os,'macos') }}
+        if: ${{ inputs.upload-artifact && startsWith(matrix.os,'macos') && env.HAS_APPLE_PROFILE == 'true' }}
         run: |
            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
            echo "${{secrets.APPLE_MOBILE_PROVISIONING_PROFILES_TARGZ_BASE64}}"|base64 --decode | tar xz -C ~/Library/MobileDevice/Provisioning\ Profiles
@@ -245,7 +270,7 @@ jobs:
           echo "keyAlias=${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}" >> android/key.properties
 
       - name: Setup Windows Signing Properties
-        if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'windows') }}
+        if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'windows') && env.HAS_WINDOWS_CERT == 'true' }}
         run: |
             [IO.File]::WriteAllBytes("windows\sign.pfx", [Convert]::FromBase64String("${{ secrets.WINDOWS_SIGNING_KEY }}"))
             (Get-Content "windows\packaging\msix\make_config.yaml") -replace '^certificate_password:.*$', 'certificate_password: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}' | Set-Content "windows\packaging\msix\make_config.yaml"
@@ -255,6 +280,18 @@ jobs:
             if (-not $cert.HasPrivateKey) { throw "WINDOWS_SIGNING_KEY has no private key" }
             if ($cert.NotAfter -lt (Get-Date)) { throw "Windows signing certificate expired on $($cert.NotAfter); update WINDOWS_SIGNING_KEY / WINDOWS_SIGNING_PASSWORD / WINDOWS_SIGNING_SHA1" }
             if ("${{ secrets.WINDOWS_SIGNING_SHA1 }}" -and $cert.Thumbprint -ne "${{ secrets.WINDOWS_SIGNING_SHA1 }}".ToUpper()) { Write-Warning "WINDOWS_SIGNING_SHA1 does not match the certificate thumbprint" }
+
+      - name: Create a test signing certificate (no secret configured)
+        # Same setup this fork already uses locally: a self-signed "CN=Hiddify-Test" pfx with
+        # the password make_config.yaml expects, so the msix can still be packaged.
+        if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'windows') && env.HAS_WINDOWS_CERT != 'true' }}
+        run: |
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Hiddify-Test" `
+              -KeyUsage DigitalSignature -FriendlyName "Hiddify Test" `
+              -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(1)
+            $pwd = ConvertTo-SecureString -String "1234" -Force -AsPlainText
+            Export-PfxCertificate -Cert $cert -FilePath "windows\sign.pfx" -Password $pwd | Out-Null
+            Write-Host "test certificate ready at windows\sign.pfx"
 
       # - name: Temporary disable Permission Handler for windows due to its issue in permission
       #   if: ${{ startsWith(matrix.platform,'windows') }}
@@ -288,7 +325,7 @@ jobs:
             echo "no release to attach the logs to yet"
 
       - name: Code Sign
-        if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'windows') }}
+        if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'windows') && env.HAS_WINDOWS_CERT == 'true' }}
         # signtool-code-sign actions hardcode an SDK path (10.0.17763.0) missing on current runners,
         # so locate signtool from whichever Windows SDK is installed.
         env:
@@ -334,7 +371,7 @@ jobs:
           Get-ChildItem -Path out
           
       - name: Upload Debug Symbols
-        if: ${{ inputs.upload-artifact && inputs.tag-name != 'draft' }}
+        if: ${{ inputs.upload-artifact && inputs.tag-name != 'draft' && env.HAS_SENTRY_AUTH == 'true' }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -481,7 +518,7 @@ jobs:
   upload-release:
     permissions: write-all
     if: ${{ inputs.upload-artifact && inputs.tag-name != 'draft' }}
-    needs: [build]
+    needs: [build, check-secrets]
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -518,9 +555,11 @@ jobs:
           files: ./out/*
 
       - name: Create service_account.json
+        if: ${{ needs.check-secrets.outputs.google_play == 'true' }}
         run: echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > service_account.json
 
       - name: Deploy to Google Play Internal Testers
+        if: ${{ needs.check-secrets.outputs.google_play == 'true' }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJson: service_account.json
@@ -531,8 +570,8 @@ jobs:
 
 
   upload-to-testflight:
-    needs: [build]
-    if: ${{ inputs.upload-artifact &&  inputs.tag-name != 'draft' }}
+    needs: [build, check-secrets]
+    if: ${{ inputs.upload-artifact &&  inputs.tag-name != 'draft' && needs.check-secrets.outputs.apple_upload == 'true' }}
     #if: ${{ inputs.upload-artifact }}
     runs-on: macOS-latest
     timeout-minutes: 30
