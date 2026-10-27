@@ -321,11 +321,8 @@ jobs:
         # Windows runners default to PowerShell, so ask for bash explicitly here.
         shell: bash
         run: |
-          for f in build.log prepare.log; do
-            [ -f "$f" ] || continue
-            echo "=== tail of $f"
-            tail -n 30 "$f" | while IFS= read -r line; do echo "::error::[$f] $line"; done
-          done
+          report=$( { echo "[build.log]"; tail -n 40 build.log 2>&1; echo "[prepare.log]"; tail -n 15 prepare.log 2>&1; } | tr '\n' '~' | tr -d '\r' | cut -c1-3000 )
+          echo "::error::$report"
 
       - name: Publish the build logs to the release
         # CI logs need a token to read, so attach them to the release instead.
@@ -470,11 +467,10 @@ jobs:
         if: always()
         continue-on-error: true
         shell: bash
+        # GitHub keeps only a couple of annotations per job, so everything goes into one.
         run: |
-          for d in dist out; do
-            echo "=== $d"
-            ls -R "$d" 2>&1 | head -n 25 | while IFS= read -r line; do echo "::error::[$d] $line"; done
-          done
+          report=$( { echo "[dist]"; ls -R dist 2>&1 | head -n 15; echo "[out]"; ls -R out 2>&1 | head -n 15; echo "[build.log]"; tail -n 25 build.log 2>&1; } | tr '\n' '~' | tr -d '\r' | cut -c1-3000 )
+          echo "::error::$report"
 
       - name: Clean up keychain and provisioning profile
         if: ${{ always() && startsWith(matrix.os,'macos')}}
@@ -592,10 +588,11 @@ jobs:
           ls -R ./out || echo "no out directory"
           mv out/hiddify-android-market.aab  hiddify-android-market.aab || echo "no aab in this release"
       - name: Surface what was collected
-        if: always()
+        if: failure()
         continue-on-error: true
         run: |
-          ls -la ./out 2>&1 | while IFS= read -r line; do echo "::error::[out] $line"; done
+          report=$( ls -laR ./out 2>&1 | head -n 30 | tr '\n' '~' | tr -d '\r' | cut -c1-3000 )
+          echo "::error::$report"
 
       - name: prepare_release_message
         run: |
