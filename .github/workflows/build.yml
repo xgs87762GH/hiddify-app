@@ -306,12 +306,14 @@ jobs:
 
       - name: Prepare for ${{ matrix.platform }}
         run: |
+          set -o pipefail
           make ${{ matrix.platform }}-prepare 2>&1 | tee prepare.log
 
       - name: Build ${{ matrix.platform }}
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
+          set -o pipefail
           make ${{ matrix.platform }}-release 2>&1 | tee build.log
       - name: Surface the build error
         # Logs cannot be read from outside the runner, but annotations can, so echo the
