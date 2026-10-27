@@ -17,6 +17,8 @@ env:
   CHANNEL: "${{ inputs.channel }}"
   FLUTTER_VERSION: '3.38.5'
   NDK_VERSION: r28c
+  # hiddify-core release the Kotlin bindings in this branch are written against.
+  CORE_VERSION: '5.0.3'
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
   TAG_NAME: "${{ inputs.tag-name }}"
   TARGET_NAME_gz: "Hiddify-Linux-x64-AppImage.tar"
@@ -259,6 +261,17 @@ jobs:
         run: |
           make ${{ matrix.platform }}-install-deps  
           echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Pin the core to the release matching this app version
+        # The floating "draft" core does not always carry the API the Kotlin
+        # bindings in this branch call (shell, bridge, auto-redirect,
+        # cancelNotification, DNSMode), so the Android build fails with
+        # "'xxx' overrides nothing". android-libs keeps an AAR that is present.
+        if: startsWith(matrix.platform,'android')
+        run: |
+          mkdir -p android/app/libs
+          curl -L "https://github.com/hiddify/hiddify-core/releases/download/v${{ env.CORE_VERSION }}/hiddify-lib-android.tar.gz" | tar xz -C android/app/libs/
+          ls -la android/app/libs
 
       - name: Setup Android Signing Properties
         if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'android') }}

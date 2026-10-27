@@ -471,7 +471,10 @@ ios-release: #not tested
 
 android-libs:
 	$(MKDIR) $(ANDROID_OUT) || echo Folder already exists. Skipping...
-	curl -L $(CORE_URL)/$(CORE_NAME)-android.tar.gz | tar xz -C $(ANDROID_OUT)/
+	# Keep an AAR that is already in place (CI pins the core release that matches
+	# this app version): the floating "draft" core lags behind the Kotlin bindings
+	# here, which fails the build with "'xxx' overrides nothing".
+	if [ -f $(ANDROID_OUT)/$(LIB_NAME).aar ]; then echo "using existing $(LIB_NAME).aar"; else curl -L $(CORE_URL)/$(CORE_NAME)-android.tar.gz | tar xz -C $(ANDROID_OUT)/; fi
 
 android-apk-libs: android-libs
 android-aab-libs: android-libs
