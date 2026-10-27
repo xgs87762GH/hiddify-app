@@ -323,7 +323,7 @@ jobs:
         # Windows runners default to PowerShell, so ask for bash explicitly here.
         shell: bash
         run: |
-          report=$( { echo "[build.log]"; tail -n 40 build.log 2>&1; echo "[prepare.log]"; tail -n 15 prepare.log 2>&1; } | tr '\n' '~' | tr -d '\r' | cut -c1-3000 )
+          report=$( { echo "[build.log]"; tail -n 50 build.log 2>&1; echo "[prepare.log]"; tail -n 40 prepare.log 2>&1; } | tr '\n' '~' | tr -d '\r' | cut -c1-6000 )
           echo "::error::$report"
 
       - name: Publish the build logs to the release
