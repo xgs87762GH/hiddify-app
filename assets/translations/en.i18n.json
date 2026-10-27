@@ -115,6 +115,7 @@
       "activeProxy": "Active proxy",
       "unknownIp": "Unknown IP",
       "switchFailed": "Couldn’t switch to this proxy. Try again.",
+      "autoFailoverSwitched": "Timed out — switched to $name",
       "sortOptions": {
         "unsorted": "Default",
         "name": "Alphabetically",
@@ -243,6 +244,8 @@
         "enableAnalytics": "Turn on analytics",
         "enableAnalyticsMsg": "Send analytics and crash reports from your device to help improve the app",
         "autoIpCheck": "Automatically check connection IP",
+        "autoFailoverProxy": "Auto-switch on proxy timeout",
+        "autoFailoverProxyMsg": "If the current proxy times out, switch to another working one (prefers non-QUIC)",
         "dynamicNotification": "Display speed in notification",
         "hapticFeedback": "Haptic feedback",
         "alwaysOnVpn": "Always-on VPN",
