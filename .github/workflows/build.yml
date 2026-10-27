@@ -404,15 +404,16 @@ jobs:
       - name: Copy to out unix
         if: startsWith(matrix.platform,'linux') || matrix.platform == 'macos' || matrix.platform == 'ios'
         run: |
-          ls -R dist/
-          mkdir out
-          mkdir tmp_out
+          ls -R dist/ || echo "nothing built into dist/"
+          mkdir -p out tmp_out
           
           for EXT in $(echo ${{ matrix.targets }} | tr ',' '\n'); do
             KEY=TARGET_NAME_${EXT}
             FILENAME=${!KEY}
             echo "For $EXT ($KEY) filename is ${FILENAME}"
-            mv dist/*/*.$EXT tmp_out/${FILENAME}.$EXT
+            # The fork's Makefile does not build every extension the matrix lists, so a
+            # missing artifact skips its own turn instead of failing the whole step.
+            mv dist/*/*.$EXT tmp_out/${FILENAME}.$EXT || { echo "no .$EXT produced for $EXT"; continue; }
             ls tmp_out
             [[ "$EXT" != "gz" ]] && chmod +x tmp_out/${FILENAME}.$EXT || echo "Skipping chmod for gz"
             if [ "${{matrix.platform}}" == "linux" ];then
@@ -446,6 +447,27 @@ jobs:
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db ||echo ok
           rm ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision ||echo ok
+
+      - name: Publish the job logs to the release
+        # Without a token the runner's own log cannot be read from the outside, so pull it
+        # here and attach it to the release. Temporary aid while this pipeline is repaired.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          job=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+                --jq ".jobs[] | select(.runner_name == \"$RUNNER_NAME\") | .id" | head -n1)
+          echo "job id: $job"
+          if [ -n "$job" ]; then
+            name="job_log-${{ matrix.platform }}.zip"
+            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > "$name"
+            ls -l "$name"
+            if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+              gh release upload "$GITHUB_REF_NAME" "$name" --clobber
+            else
+              echo "no release to attach the logs to yet"
+            fi
+          fi
   update-draft:
     permissions: write-all
     if: ${{ inputs.upload-artifact }}
