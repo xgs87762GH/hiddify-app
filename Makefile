@@ -502,6 +502,11 @@ linux-arm64-musl-libs:
 macos-libs:
 	mkdir -p  $(DESKTOP_OUT) 
 	curl -L $(CORE_URL)/$(CORE_NAME)-macos.tar.gz | tar xz -C $(DESKTOP_OUT)
+	# CI runners ship stale CocoaPods specs, and the `pod install` that
+	# `flutter build macos` runs later then fails with "specs repository is too
+	# out-of-date". Only the index is refreshed here: a bare `pod install` would
+	# run before Flutter has generated its ephemeral xcconfig files.
+	pod repo update
 
 ios-libs: #not tested
 	mkdir -p $(IOS_OUT)
