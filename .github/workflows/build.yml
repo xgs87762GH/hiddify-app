@@ -55,7 +55,7 @@ jobs:
       - name: Upload the build logs to the release
         # Logs are not readable without a token, so attach them where they can be read:
         # this is the only way to find out what actually broke on the runner.
-        if: always()
+        if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -269,14 +269,23 @@ jobs:
 
       - name: Prepare for ${{ matrix.platform }}
         run: |
-          make ${{ matrix.platform }}-prepare
-
+          make ${{ matrix.platform }}-prepare 2>&1 | tee prepare.log
 
       - name: Build ${{ matrix.platform }}
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
-          make ${{ matrix.platform }}-release
+          make ${{ matrix.platform }}-release 2>&1 | tee build.log
+      - name: Publish the build logs to the release
+        # CI logs need a token to read, so attach them to the release instead.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tar -czf "logs-${{ matrix.os }}-${{ matrix.platform }}.tar.gz" prepare.log build.log || true
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 &&
+            gh release upload "$GITHUB_REF_NAME" "logs-${{ matrix.os }}-${{ matrix.platform }}.tar.gz" --clobber ||
+            echo "no release to attach the logs to yet"
 
       - name: Code Sign
         if: ${{ inputs.upload-artifact && startsWith(matrix.platform,'windows') }}
