@@ -173,6 +173,18 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
     _triedTags.clear();
   }
 
+  /// Balancer/QUIC often stay on delay 0 with no further stream events; keep a
+  /// timer so a failed/cooldown escape still retries instead of sticking forever.
+  void _armStuckConnectingTimer([Duration wait = _stuckConnecting]) {
+    _stuckConnectingTimer?.cancel();
+    final delay = wait <= Duration.zero ? const Duration(milliseconds: 50) : wait;
+    _stuckConnectingTimer = Timer(delay, () {
+      _stuckConnectingTimer = null;
+      final latest = _lastActiveForFailover;
+      if (latest != null) unawaited(_maybeFailover(latest));
+    });
+  }
+
   void _handleConnectionHaptic(int urlTestDelay) {
     final isValid = ConnectionConst.isValidDelay(urlTestDelay);
     if (isValid == _wasConnectionValid) return;
@@ -211,11 +223,9 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
       _connectingSince ??= DateTime.now();
       final waited = DateTime.now().difference(_connectingSince!);
       if (waited < _stuckConnecting) {
-        _stuckConnectingTimer ??= Timer(_stuckConnecting - waited, () {
-          _stuckConnectingTimer = null;
-          final latest = _lastActiveForFailover;
-          if (latest != null) unawaited(_maybeFailover(latest));
-        });
+        if (_stuckConnectingTimer == null) {
+          _armStuckConnectingTimer(_stuckConnecting - waited);
+        }
         return;
       }
       _stuckConnectingTimer?.cancel();
@@ -230,25 +240,40 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
       if (_invalidStreak < _minInvalidBeforeFailover) return;
     }
 
-    if (_failoverInFlight) return;
+    if (_failoverInFlight) {
+      if (stuckConnecting) _armStuckConnectingTimer(_failoverCooldown);
+      return;
+    }
     final last = _lastFailoverAt;
-    if (last != null && DateTime.now().difference(last) < _failoverCooldown) return;
+    if (last != null) {
+      final since = DateTime.now().difference(last);
+      if (since < _failoverCooldown) {
+        if (stuckConnecting) _armStuckConnectingTimer(_failoverCooldown - since);
+        return;
+      }
+    }
 
     _failoverInFlight = true;
+    var switched = false;
     try {
-      await _runFailover(active, allowUnmeasured: stuckConnecting);
+      switched = await _runFailover(active, allowUnmeasured: stuckConnecting);
     } catch (e, st) {
       loggy.warning("proxy failover failed", e, st);
     } finally {
       _failoverInFlight = false;
     }
+    // Still delay 0 and no stream push: re-arm so we do not stick on Connecting.
+    if (!switched && stuckConnecting && _lastServiceRunning == true) {
+      _armStuckConnectingTimer(_failoverCooldown);
+    }
   }
 
-  Future<void> _runFailover(OutboundInfo active, {required bool allowUnmeasured}) async {
+  /// Returns true when a replacement outbound was selected.
+  Future<bool> _runFailover(OutboundInfo active, {required bool allowUnmeasured}) async {
     final group = await _resolveProxyGroup();
     if (group == null || group.tag.isEmpty) {
       loggy.debug("failover: no proxy group available yet");
-      return;
+      return false;
     }
 
     final leaf = ProxyFailover.leafTag(active);
@@ -264,7 +289,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
         : ProxyFailover.rankedCandidates(group, excludeTags: exclude);
     if (candidates.isEmpty) {
       await _urlTestForFailover(group.tag);
-      return;
+      return false;
     }
 
     final next = candidates.first;
@@ -279,7 +304,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
           return false;
         })
         .run();
-    if (!selected) return;
+    if (!selected) return false;
 
     _triedTags.add(leaf);
     _triedTags.add(next.tag);
@@ -291,6 +316,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
     ref
         .read(inAppNotificationControllerProvider)
         .showInfoToast(t.pages.proxies.autoFailoverSwitched(name: ProxyFailover.displayName(next)));
+    return true;
   }
 
   Future<OutboundGroup?> _resolveProxyGroup() async {

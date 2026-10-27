@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:hiddify/core/http_client/dio_http_client.dart';
@@ -134,33 +138,59 @@ class ProxyRepositoryImpl with ExceptionHandler, InfraLogger implements ProxyRep
           break;
         }
       }
-      // Every source is asked at once and the first answer wins. Probing them
-      // one after another meant waiting out the full retry budget of each
-      // endpoint before trying the next, which is minutes when the proxy port
-      // is not up yet.
+      // Every source is asked at once; the first *successful* answer wins.
+      // Future.any would complete on the first failure too, which made a fast
+      // failing endpoint wipe out slower sources that still had a valid reply.
       final candidates = [
         for (final source in _ipInfoSources.entries)
           if (source.key != preferred) source,
       ];
+      if (candidates.isEmpty) {
+        throw UnableToRetrieveIp(error, StackTrace.current);
+      }
       try {
-        return await Future.any(
-          candidates.map((source) async {
-            loggy.debug("getting current ip info using [${source.key}]");
-            final response = await client.get<Map<String, dynamic>>(
-              source.key,
-              cancelToken: cancelToken,
-              proxyOnly: true,
-            );
-            if (response.statusCode != 200 || response.data == null) {
-              throw UnableToRetrieveIp(null, StackTrace.current);
-            }
-            _lastWorkingSource = source.key;
-            return source.value(response.data!);
-          }),
-        );
+        return await _firstSuccessfulIpInfo(candidates, cancelToken);
       } catch (e) {
         throw UnableToRetrieveIp(error ?? e, StackTrace.current);
       }
     }, ProxyUnexpectedFailure.new);
+  }
+
+  /// Race [candidates]; complete with the first 200 OK parse, ignore earlier failures.
+  Future<oldipinfo.IpInfo> _firstSuccessfulIpInfo(
+    List<MapEntry<String, oldipinfo.IpInfo Function(Map<String, dynamic>)>> candidates,
+    CancelToken cancelToken,
+  ) {
+    final completer = Completer<oldipinfo.IpInfo>();
+    var pending = candidates.length;
+    Object? lastError;
+
+    for (final source in candidates) {
+      () async {
+        try {
+          loggy.debug("getting current ip info using [${source.key}]");
+          final response = await client.get<Map<String, dynamic>>(
+            source.key,
+            cancelToken: cancelToken,
+            proxyOnly: true,
+          );
+          if (response.statusCode != 200 || response.data == null) {
+            throw UnableToRetrieveIp(null, StackTrace.current);
+          }
+          if (!completer.isCompleted) {
+            _lastWorkingSource = source.key;
+            completer.complete(source.value(response.data!));
+          }
+        } catch (e) {
+          lastError = e;
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.completeError(lastError ?? e);
+          }
+        }
+      }();
+    }
+
+    return completer.future;
   }
 }

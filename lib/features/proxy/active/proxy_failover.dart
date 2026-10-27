@@ -10,13 +10,13 @@ abstract final class ProxyFailover {
   static const groupTypes = {'balancer', 'urltest', 'selector'};
 
   /// Tags / types that usually need UDP and fail first on filtered broadband.
+  /// WireGuard is TCP/UDP capable and is not treated as QUIC-like here.
   static bool looksQuic(OutboundInfo item) {
     final hay = '${item.tag} ${item.type} ${item.tagDisplay}'.toLowerCase();
     return hay.contains('quic') ||
         hay.contains('hysteria') ||
         hay.contains('tuic') ||
-        hay.contains('h3') ||
-        hay.contains('wireguard');
+        hay.contains('h3');
   }
 
   static bool isGroupOutbound(OutboundInfo item) {

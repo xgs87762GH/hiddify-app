@@ -28,6 +28,7 @@ void main() {
       expect(ProxyFailover.looksQuic(_item(tag: 'Hysteria2 QUIC HC', type: 'hysteria2')), isTrue);
       expect(ProxyFailover.looksQuic(_item(tag: 'node', type: 'tuic')), isTrue);
       expect(ProxyFailover.looksQuic(_item(tag: 'xhttp-h3')), isTrue);
+      expect(ProxyFailover.looksQuic(_item(tag: 'wg-home', type: 'wireguard')), isFalse);
     });
   });
 
