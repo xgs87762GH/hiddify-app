@@ -510,10 +510,11 @@ macos-libs:
 	# emit its ephemeral xcconfig first, otherwise pod install cannot find it.
 	flutter pub get
 	flutter build macos --config-only
-	# The runners ship a stale spec cache: even --repo-update leaves sqlite3 older
-	# than the plugin requires ("out-of-date source repos"), so drop the cache and
-	# let CocoaPods re-fetch it from the CDN before resolving.
+	# The runners ship a stale spec cache and `pod install` honours Podfile.lock,
+	# so sqlite3 stays older than the plugin requires ("out-of-date source repos").
+	# Drop both and resolve again: without a lock the resolver picks a newer sqlite3.
 	rm -rf ~/.cocoapods/repos/trunk
+	rm -f macos/Podfile.lock
 	cd macos && pod install --repo-update
 
 ios-libs: #not tested
