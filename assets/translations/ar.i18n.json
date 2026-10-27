@@ -258,6 +258,7 @@
         "autoFailoverProxyMsg": "إذا انتهت مهلة البروكسي الحالي، بدّل إلى آخر يعمل (يفضّل غير QUIC)",
         "dynamicNotification": "عرض السرعة في الإشعار",
         "hapticFeedback": "ردود الفعل اللمسية",
+        "alwaysOnVpn": "VPN دائم التشغيل",
         "actionAtClosing": "عند إغلاق النافذة",
         "autoStart": "البدء عند تسجيل الدخول",
         "silentStart": "البدء في الخلفية",

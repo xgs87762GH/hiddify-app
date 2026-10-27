@@ -162,6 +162,7 @@
           "failure": "更新配置文件失败",
           "failureNamed": "更新“${name}”失败",
           "bulkSuccess(plural, param=count)": {
+            "one": "已更新 $count 个配置文件",
             "other": "已更新 $count 个配置文件"
           },
           "bulkPartial": "${success} 个已更新\n${failed} 个失败：${names}"
@@ -247,6 +248,7 @@
         "autoFailoverProxyMsg": "当前节点超时后，自动切到其他可用节点（优先非 QUIC）",
         "dynamicNotification": "在通知中显示速度",
         "hapticFeedback": "触觉反馈",
+        "alwaysOnVpn": "始终开启 VPN",
         "actionAtClosing": "关闭窗口时",
         "autoStart": "开机自启",
         "silentStart": "静默启动",
@@ -610,6 +612,7 @@
       "expired": "已过期",
       "noTraffic": "流量已用尽",
       "remainingDuration(plural, param=days)": {
+        "one": "剩余 $days 天",
         "other": "剩余 $days 天"
       },
       "remainingUnlimited": "无限制",

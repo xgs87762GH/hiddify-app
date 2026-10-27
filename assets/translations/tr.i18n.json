@@ -162,6 +162,7 @@
           "failure": "Profil güncellenemedi",
           "failureNamed": "“${name}” güncellenemedi",
           "bulkSuccess(plural, param=count)": {
+            "one": "$count profil güncellendi",
             "other": "$count profil güncellendi"
           },
           "bulkPartial": "${success} güncellendi\n${failed} başarısız: ${names}"
@@ -247,6 +248,7 @@
         "autoFailoverProxyMsg": "Geçerli proxy zaman aşımına uğrarsa çalışan başka birine geç (QUIC olmayanı tercih et)",
         "dynamicNotification": "Hızı bildirimde göster",
         "hapticFeedback": "Dokunsal geri bildirim",
+        "alwaysOnVpn": "Her zaman açık VPN",
         "actionAtClosing": "Pencere kapatılırken",
         "autoStart": "Oturum açılışında başlat",
         "silentStart": "Simge durumunda başlat",
@@ -610,6 +612,7 @@
       "expired": "Süresi doldu",
       "noTraffic": "Kota doldu",
       "remainingDuration(plural, param=days)": {
+        "one": "$days gün kaldı",
         "other": "$days gün kaldı"
       },
       "remainingUnlimited": "Sınırsız",

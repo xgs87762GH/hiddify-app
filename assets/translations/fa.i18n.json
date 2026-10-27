@@ -248,6 +248,7 @@
         "autoFailoverProxyMsg": "اگر پروکسی فعلی قطع شود، به یک پروکسی سالم دیگر برو (اولویت با غیر QUIC)",
         "dynamicNotification": "نمایش سرعت در اعلان",
         "hapticFeedback": "بازخورد لرزشی",
+        "alwaysOnVpn": "VPN همیشه روشن",
         "actionAtClosing": "هنگام بستن پنجره",
         "autoStart": "شروع هنگام ورود به سیستم",
         "silentStart": "شروع در حالت کمینه",

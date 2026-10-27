@@ -248,6 +248,7 @@
         "autoFailoverProxyMsg": "Si el proxy actual agota el tiempo, cambia a otro que funcione (prioriza no QUIC)",
         "dynamicNotification": "Mostrar velocidad en la notificación",
         "hapticFeedback": "Respuesta háptica",
+        "alwaysOnVpn": "VPN siempre activo",
         "actionAtClosing": "Al cerrar la ventana",
         "autoStart": "Iniciar al arrancar",
         "silentStart": "Iniciar minimizado",

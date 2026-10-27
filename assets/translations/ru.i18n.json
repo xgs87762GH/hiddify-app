@@ -254,6 +254,7 @@
         "autoFailoverProxyMsg": "Если текущий прокси не отвечает, переключиться на другой рабочий (сначала не QUIC)",
         "dynamicNotification": "Отображать скорость в уведомлении",
         "hapticFeedback": "Тактильный отклик",
+        "alwaysOnVpn": "VPN всегда включён",
         "actionAtClosing": "При закрытии окна",
         "autoStart": "Запускать при входе в систему",
         "silentStart": "Запускать свернутым",

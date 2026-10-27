@@ -162,6 +162,7 @@
           "failure": "Gagal memperbarui profil",
           "failureNamed": "Gagal memperbarui “${name}”",
           "bulkSuccess(plural, param=count)": {
+            "one": "$count profil diperbarui",
             "other": "$count profil diperbarui"
           },
           "bulkPartial": "${success} diperbarui\n${failed} gagal: ${names}"
@@ -247,6 +248,7 @@
         "autoFailoverProxyMsg": "Jika proxy saat ini timeout, ganti ke yang lain yang bekerja (utamakan non-QUIC)",
         "dynamicNotification": "Tampilkan kecepatan di notifikasi",
         "hapticFeedback": "Umpan balik haptik",
+        "alwaysOnVpn": "VPN selalu aktif",
         "actionAtClosing": "Saat menutup jendela",
         "autoStart": "Mulai saat masuk",
         "silentStart": "Mulai diminimalkan",
@@ -610,6 +612,7 @@
       "expired": "Kedaluwarsa",
       "noTraffic": "Kuota habis",
       "remainingDuration(plural, param=days)": {
+        "one": "Sisa $days hari",
         "other": "Sisa $days hari"
       },
       "remainingUnlimited": "Tanpa batas",

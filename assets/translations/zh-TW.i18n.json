@@ -162,6 +162,7 @@
           "failure": "更新設定檔失敗",
           "failureNamed": "更新「${name}」失敗",
           "bulkSuccess(plural, param=count)": {
+            "one": "已更新 $count 個設定檔",
             "other": "已更新 $count 個設定檔"
           },
           "bulkPartial": "${success} 個已更新\n${failed} 個失敗：${names}"
@@ -247,6 +248,7 @@
         "autoFailoverProxyMsg": "目前節點逾時後，自動切到其他可用節點（優先非 QUIC）",
         "dynamicNotification": "在通知中顯示速度",
         "hapticFeedback": "觸覺回饋",
+        "alwaysOnVpn": "始終開啟 VPN",
         "actionAtClosing": "關閉視窗時",
         "autoStart": "開機自啟",
         "silentStart": "靜默啟動",
@@ -610,6 +612,7 @@
       "expired": "已到期",
       "noTraffic": "流量已用盡",
       "remainingDuration(plural, param=days)": {
+        "one": "剩餘 $days 天",
         "other": "剩餘 $days 天"
       },
       "remainingUnlimited": "無限制",
