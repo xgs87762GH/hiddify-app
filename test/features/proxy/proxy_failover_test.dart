@@ -79,6 +79,44 @@ void main() {
     });
   });
 
+  group('ProxyFailover.escapeCandidates', () {
+    test('escapes balancer by picking unmeasured non-quic leaf', () {
+      final group = OutboundGroup(
+        tag: 'Select',
+        selected: 'Balancer',
+        items: [
+          _item(tag: 'Balancer', type: 'balancer', isGroup: true, delay: 0),
+          _item(tag: 'quic-node', type: 'hysteria2', delay: 0),
+          _item(tag: 'reality-a', type: 'vless', delay: 0),
+          _item(tag: 'reality-b', type: 'vless', delay: 0),
+        ],
+      );
+
+      final escaped = ProxyFailover.escapeCandidates(
+        group,
+        excludeTags: {'Balancer'},
+      );
+
+      expect(escaped.map((e) => e.tag).toList(), ['reality-a', 'reality-b']);
+    });
+
+    test('prefers live delays over unmeasured when both exist', () {
+      final group = OutboundGroup(
+        tag: 'Select',
+        items: [
+          _item(tag: 'unmeasured-tcp', delay: 0),
+          _item(tag: 'live-tcp', delay: 40),
+          _item(tag: 'live-quic', type: 'tuic', delay: 20),
+        ],
+      );
+
+      expect(
+        ProxyFailover.escapeCandidates(group, excludeTags: {}).map((e) => e.tag).toList(),
+        ['live-tcp', 'live-quic'],
+      );
+    });
+  });
+
   group('ProxyFailover.displayName', () {
     test('uses tagDisplay when present', () {
       expect(

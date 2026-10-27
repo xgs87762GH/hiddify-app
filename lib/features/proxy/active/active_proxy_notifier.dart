@@ -99,7 +99,11 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
       return Stream.error(const ServiceNotRunning());
     }
     Timer? resubscribe;
-    ref.onDispose(() => resubscribe?.cancel());
+    ref.onDispose(() {
+      resubscribe?.cancel();
+      _stuckConnectingTimer?.cancel();
+      _stuckConnectingTimer = null;
+    });
     var received = 0;
     return _proxyRepo
         .watchActiveProxies()
@@ -145,11 +149,16 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
   static const _minInvalidBeforeFailover = 2;
   static const _failoverCooldown = Duration(seconds: 20);
   static const _urlTestCooldown = Duration(seconds: 45);
+  /// "Connecting…" with delay 0 forever (common on Balancer) must escape too.
+  static const _stuckConnecting = Duration(seconds: 12);
 
   int _invalidStreak = 0;
   bool _failoverInFlight = false;
   DateTime? _lastFailoverAt;
   DateTime? _lastUrlTestAt;
+  DateTime? _connectingSince;
+  Timer? _stuckConnectingTimer;
+  OutboundInfo? _lastActiveForFailover;
   final Set<String> _triedTags = {};
 
   void _resetFailoverState() {
@@ -157,6 +166,10 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
     _failoverInFlight = false;
     _lastFailoverAt = null;
     _lastUrlTestAt = null;
+    _connectingSince = null;
+    _stuckConnectingTimer?.cancel();
+    _stuckConnectingTimer = null;
+    _lastActiveForFailover = null;
     _triedTags.clear();
   }
 
@@ -180,23 +193,50 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
     if (_lastServiceRunning != true) return;
 
     final delay = active.urlTestDelay;
-    // 0 = not measured yet (still connecting); do not treat as a failure.
-    if (delay == 0) return;
     if (ConnectionConst.isValidDelay(delay)) {
       _invalidStreak = 0;
+      _connectingSince = null;
+      _stuckConnectingTimer?.cancel();
+      _stuckConnectingTimer = null;
       _triedTags.clear();
       return;
     }
 
-    _invalidStreak++;
-    if (_invalidStreak < _minInvalidBeforeFailover) return;
+    _lastActiveForFailover = active;
+    var stuckConnecting = false;
+    if (delay == 0) {
+      // Fresh connect: wait a bit for the first ping. Balancer/QUIC can sit on
+      // delay 0 forever ("Connecting…"), so escape after [_stuckConnecting].
+      // The active-proxy stream may not emit again while stuck, so arm a timer.
+      _connectingSince ??= DateTime.now();
+      final waited = DateTime.now().difference(_connectingSince!);
+      if (waited < _stuckConnecting) {
+        _stuckConnectingTimer ??= Timer(_stuckConnecting - waited, () {
+          _stuckConnectingTimer = null;
+          final latest = _lastActiveForFailover;
+          if (latest != null) unawaited(_maybeFailover(latest));
+        });
+        return;
+      }
+      _stuckConnectingTimer?.cancel();
+      _stuckConnectingTimer = null;
+      stuckConnecting = true;
+      _invalidStreak = _minInvalidBeforeFailover;
+    } else {
+      _connectingSince = null;
+      _stuckConnectingTimer?.cancel();
+      _stuckConnectingTimer = null;
+      _invalidStreak++;
+      if (_invalidStreak < _minInvalidBeforeFailover) return;
+    }
+
     if (_failoverInFlight) return;
     final last = _lastFailoverAt;
     if (last != null && DateTime.now().difference(last) < _failoverCooldown) return;
 
     _failoverInFlight = true;
     try {
-      await _runFailover(active);
+      await _runFailover(active, allowUnmeasured: stuckConnecting);
     } catch (e, st) {
       loggy.warning("proxy failover failed", e, st);
     } finally {
@@ -204,7 +244,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
     }
   }
 
-  Future<void> _runFailover(OutboundInfo active) async {
+  Future<void> _runFailover(OutboundInfo active, {required bool allowUnmeasured}) async {
     final group = await _resolveProxyGroup();
     if (group == null || group.tag.isEmpty) {
       loggy.debug("failover: no proxy group available yet");
@@ -219,7 +259,9 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
       ..._triedTags,
     };
 
-    final candidates = ProxyFailover.rankedCandidates(group, excludeTags: exclude);
+    final candidates = allowUnmeasured
+        ? ProxyFailover.escapeCandidates(group, excludeTags: exclude)
+        : ProxyFailover.rankedCandidates(group, excludeTags: exclude);
     if (candidates.isEmpty) {
       await _urlTestForFailover(group.tag);
       return;
@@ -227,7 +269,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
 
     final next = candidates.first;
     loggy.info(
-      "failover: [$leaf] timed out → [${next.tag}] (${next.urlTestDelay}ms)",
+      "failover: [$leaf] ${allowUnmeasured ? 'stuck connecting' : 'timed out'} → [${next.tag}] (${next.urlTestDelay}ms)",
     );
     final selected = await _proxyRepo
         .selectProxy(group.tag, next.tag)
@@ -243,6 +285,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
     _triedTags.add(next.tag);
     _lastFailoverAt = DateTime.now();
     _invalidStreak = 0;
+    _connectingSince = null;
 
     final t = ref.read(translationsProvider).requireValue;
     ref
