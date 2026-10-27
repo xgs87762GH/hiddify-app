@@ -47,13 +47,29 @@ jobs:
           cache: true
           
       - name: Prepare
-        run: make linux-amd64-prepare
+        run: make linux-amd64-prepare 2>&1 | tee prepare_log.txt
       - name: Test
-        run: flutter test
+        id: test
+        continue-on-error: true
+        run: flutter test 2>&1 | tee test_log.txt
+      - name: Upload the build logs to the release
+        # Logs are not readable without a token, so attach them where they can be read:
+        # this is the only way to find out what actually broke on the runner.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tar -czf logs.tar.gz prepare_log.txt test_log.txt
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 &&
+            gh release upload "$GITHUB_REF_NAME" logs.tar.gz --clobber ||
+            echo "no release to attach the logs to yet"
 
       - name: make draftBuildCode
         id: draftBuildCode
         run: echo "::set-output name=datetime::$(date +'%d.%H.%M')"
+      - name: Fail if the tests failed
+        if: steps.test.outcome == 'failure'
+        run: exit 1
 
 
   build:
