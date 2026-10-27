@@ -61,7 +61,7 @@ dependencies:
   # Pinned: 0.5.4x wants the `sqlite3` pod at `~> 3.52.0`, newer than what the
   # macOS runners have in their spec repos, so pod resolution fails with
   # "out-of-date source repos". 0.5.34 only needs `~> 3.50.1`.
-  sqlite3_flutter_libs: 0.5.34
+  sqlite3_flutter_libs: 0.5.28
 
   path: ^1.9.0
   logging: ^1.3.0
