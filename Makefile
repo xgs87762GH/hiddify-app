@@ -507,7 +507,9 @@ macos-libs:
 	# emit its ephemeral xcconfig first, otherwise pod install cannot find it.
 	flutter pub get
 	flutter build macos --config-only
-	cd macos && pod install --repo-update
+	# The checked-in Podfile.lock pins an old sqlite3 while sqlite3_flutter_libs
+	# requires > 3.52.0, so a plain `pod install --repo-update` cannot resolve.
+	cd macos && pod update sqlite3 --repo-update
 
 ios-libs: #not tested
 	mkdir -p $(IOS_OUT)

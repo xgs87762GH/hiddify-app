@@ -19,7 +19,9 @@ pluginManagement {
 
 plugins {
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    id "com.android.application" version '8.6.0' apply false
+    // androidx.core 1.17 / browser 1.9 / camera 1.6 require AGP >= 8.9.1,
+    // and the app compiles against SDK 36, which 8.6 does not support.
+    id "com.android.application" version '8.9.1' apply false
     id "org.jetbrains.kotlin.android" version "2.1.0" apply false
 }
 
