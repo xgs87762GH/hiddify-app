@@ -305,11 +305,15 @@ jobs:
 
 
       - name: Prepare for ${{ matrix.platform }}
+        # Windows runners default to PowerShell, where `set -o pipefail` is not a
+        # thing and the whole step aborts before make even starts.
+        shell: bash
         run: |
           set -o pipefail
           make ${{ matrix.platform }}-prepare 2>&1 | tee prepare.log
 
       - name: Build ${{ matrix.platform }}
+        shell: bash
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
