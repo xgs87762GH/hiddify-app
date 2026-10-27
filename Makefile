@@ -516,9 +516,10 @@ macos-libs:
 	# honour it), then relax the floor to something the repos actually carry.
 	rm -rf ~/.cocoapods/repos/trunk
 	rm -f macos/Podfile.lock
-	cd macos && \
-	  sed -i '' "s/'sqlite3', '~> [0-9][0-9.]*'/'sqlite3', '>= 3.30'/" Flutter/ephemeral/.symlinks/plugins/sqlite3_flutter_libs/darwin/sqlite3_flutter_libs.podspec ; \
-	  pod install --repo-update
+	find ~/.pub-cache -name sqlite3_flutter_libs.podspec -path '*darwin*' -print -exec \
+	  sed -i '' "s/'sqlite3', '~> [0-9][0-9.]*'/'sqlite3', '>= 3.30'/" {} \;
+	find ~/.pub-cache -name sqlite3_flutter_libs.podspec -path '*darwin*' -exec grep -H "dependency 'sqlite3'," {} \;
+	cd macos && pod install --repo-update
 
 ios-libs: #not tested
 	mkdir -p $(IOS_OUT)
