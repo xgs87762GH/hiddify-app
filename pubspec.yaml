@@ -99,7 +99,10 @@ dependencies:
   # # then add path to "environment variable" e.g. -> C:\Users\%USERPROFILE%\AppData\Local\Pub\Cache\global_packages\protoc_plugin\bin
   protobuf: ^5.0.0
   grpc: ^4.0.1
-  dynamic_color: ^1.7.0
+  # Pinned: 1.9.0 ships a build.gradle.kts that uses the Kotlin `compilerOptions`
+  # DSL, which fails to compile against the AGP 8.6 / Gradle 8.7 toolchain the
+  # app targets ("Unresolved reference: jvmTarget"). 1.8.1 is still Groovy DSL.
+  dynamic_color: 1.8.1
   flutter_typeahead: ^5.0.1
   # flutter_platform_widgets: ^7.0.1
   simple_icons: ^10.1.3
