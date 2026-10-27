@@ -115,6 +115,7 @@
       "activeProxy": "Proxy aktif",
       "unknownIp": "IP tidak dikenal",
       "switchFailed": "Tidak dapat beralih ke proxy ini. Coba lagi.",
+      "autoFailoverSwitched": "Waktu habis — beralih ke $name",
       "sortOptions": {
         "unsorted": "Default",
         "name": "Berdasarkan abjad",
@@ -242,6 +243,8 @@
         "enableAnalytics": "Aktifkan analitik",
         "enableAnalyticsMsg": "Kirim analitik dan laporan kerusakan dari perangkat Anda untuk membantu meningkatkan aplikasi",
         "autoIpCheck": "Periksa IP koneksi secara otomatis",
+        "autoFailoverProxy": "Ganti otomatis saat timeout",
+        "autoFailoverProxyMsg": "Jika proxy saat ini timeout, ganti ke yang lain yang bekerja (utamakan non-QUIC)",
         "dynamicNotification": "Tampilkan kecepatan di notifikasi",
         "hapticFeedback": "Umpan balik haptik",
         "actionAtClosing": "Saat menutup jendela",

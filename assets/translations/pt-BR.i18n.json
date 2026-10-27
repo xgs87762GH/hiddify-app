@@ -115,6 +115,7 @@
       "activeProxy": "Proxy ativo",
       "unknownIp": "IP desconhecido",
       "switchFailed": "Não foi possível mudar para este proxy. Tente de novo.",
+      "autoFailoverSwitched": "Tempo esgotado — mudou para $name",
       "sortOptions": {
         "unsorted": "Padrão",
         "name": "Alfabeticamente",
@@ -243,6 +244,8 @@
         "enableAnalytics": "Ativar análise de dados",
         "enableAnalyticsMsg": "Envie dados de análise e relatórios de falhas do seu dispositivo para ajudar a melhorar o aplicativo",
         "autoIpCheck": "Verificar IP da conexão automaticamente",
+        "autoFailoverProxy": "Trocar automaticamente ao expirar",
+        "autoFailoverProxyMsg": "Se o proxy atual expirar, muda para outro que funcione (prioriza não QUIC)",
         "dynamicNotification": "Exibir velocidade na notificação",
         "hapticFeedback": "Feedback tátil",
         "actionAtClosing": "Ao fechar a janela",

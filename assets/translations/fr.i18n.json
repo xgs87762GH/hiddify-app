@@ -115,6 +115,7 @@
       "activeProxy": "Proxy actif",
       "unknownIp": "IP inconnue",
       "switchFailed": "Impossible de passer à ce proxy. Réessayez.",
+      "autoFailoverSwitched": "Délai dépassé — bascule vers $name",
       "sortOptions": {
         "unsorted": "Par défaut",
         "name": "Alphabétiquement",
@@ -243,6 +244,8 @@
         "enableAnalytics": "Activer les statistiques",
         "enableAnalyticsMsg": "Envoyez des statistiques et des rapports d'erreurs depuis votre appareil pour aider à améliorer l'application",
         "autoIpCheck": "Vérifier automatiquement l'IP de connexion",
+        "autoFailoverProxy": "Basculer auto en cas de délai dépassé",
+        "autoFailoverProxyMsg": "Si le proxy actuel expire, bascule vers un autre qui fonctionne (préfère non-QUIC)",
         "dynamicNotification": "Afficher la vitesse dans la notification",
         "hapticFeedback": "Retour haptique",
         "actionAtClosing": "À la fermeture de la fenêtre",

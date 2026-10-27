@@ -115,6 +115,7 @@
       "activeProxy": "当前代理",
       "unknownIp": "未知 IP",
       "switchFailed": "无法切换到此代理。请重试。",
+      "autoFailoverSwitched": "已超时，已切换到 $name",
       "sortOptions": {
         "unsorted": "默认",
         "name": "按名称",
@@ -242,6 +243,8 @@
         "enableAnalytics": "开启分析",
         "enableAnalyticsMsg": "从您的设备发送分析数据和崩溃报告，帮助改进应用",
         "autoIpCheck": "自动检查连接 IP",
+        "autoFailoverProxy": "代理超时自动切换",
+        "autoFailoverProxyMsg": "当前节点超时后，自动切到其他可用节点（优先非 QUIC）",
         "dynamicNotification": "在通知中显示速度",
         "hapticFeedback": "触觉反馈",
         "actionAtClosing": "关闭窗口时",

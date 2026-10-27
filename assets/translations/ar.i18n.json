@@ -121,6 +121,7 @@
       "activeProxy": "البروكسي النشط",
       "unknownIp": "IP غير معروف",
       "switchFailed": "تعذّر التبديل إلى هذا البروكسي. أعد المحاولة.",
+      "autoFailoverSwitched": "انتهت المهلة — تم التبديل إلى $name",
       "sortOptions": {
         "unsorted": "الافتراضي",
         "name": "أبجديًا",
@@ -253,6 +254,8 @@
         "enableAnalytics": "تفعيل التحليلات",
         "enableAnalyticsMsg": "إرسال بيانات التحليل وتقارير الأعطال من جهازك للمساعدة في تحسين التطبيق",
         "autoIpCheck": "التحقق التلقائي من IP الاتصال",
+        "autoFailoverProxy": "التبديل التلقائي عند انتهاء المهلة",
+        "autoFailoverProxyMsg": "إذا انتهت مهلة البروكسي الحالي، بدّل إلى آخر يعمل (يفضّل غير QUIC)",
         "dynamicNotification": "عرض السرعة في الإشعار",
         "hapticFeedback": "ردود الفعل اللمسية",
         "actionAtClosing": "عند إغلاق النافذة",

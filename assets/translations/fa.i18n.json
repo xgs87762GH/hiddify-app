@@ -115,6 +115,7 @@
       "activeProxy": "پروکسی فعال",
       "unknownIp": "IP ناشناخته",
       "switchFailed": "تغییر به این پروکسی ممکن نشد. دوباره تلاش کنید.",
+      "autoFailoverSwitched": "زمان تمام شد — به $name تغییر کرد",
       "sortOptions": {
         "unsorted": "پیش‌فرض",
         "name": "بر اساس نام",
@@ -243,6 +244,8 @@
         "enableAnalytics": "فعال‌سازی آمار",
         "enableAnalyticsMsg": "ارسال آمار و گزارش‌های خطا از دستگاه شما برای کمک به بهبود برنامه",
         "autoIpCheck": "بررسی خودکار IP اتصال",
+        "autoFailoverProxy": "تعویض خودکار در صورت اتمام زمان",
+        "autoFailoverProxyMsg": "اگر پروکسی فعلی قطع شود، به یک پروکسی سالم دیگر برو (اولویت با غیر QUIC)",
         "dynamicNotification": "نمایش سرعت در اعلان",
         "hapticFeedback": "بازخورد لرزشی",
         "actionAtClosing": "هنگام بستن پنجره",
