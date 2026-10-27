@@ -66,7 +66,9 @@ class _LogsPageState extends ConsumerState<LogsPage> with PresLogger {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final visible = TickerMode.valuesOf(context).enabled;
+    // TickerMode.of is the long-standing API; valuesOf is only in newer Flutter
+    // (3.41+) and breaks the pinned CI toolchain for no extra benefit here.
+    final visible = TickerMode.of(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(logsOverviewNotifierProvider.notifier).setVisible(visible);
