@@ -32,6 +32,13 @@ class GeneralPage extends HookConsumerWidget {
             secondary: const Icon(Icons.flag_rounded),
             onChanged: ref.read(Preferences.autoCheckIp.notifier).update,
           ),
+          SwitchListTile.adaptive(
+            title: Text(t.pages.settings.general.autoFailoverProxy),
+            subtitle: Text(t.pages.settings.general.autoFailoverProxyMsg),
+            secondary: const Icon(Icons.alt_route_rounded),
+            value: ref.watch(Preferences.autoFailoverProxy),
+            onChanged: ref.read(Preferences.autoFailoverProxy.notifier).update,
+          ),
           if (PlatformUtils.isAndroid) ...[
             SwitchListTile.adaptive(
               title: Text(t.pages.settings.general.dynamicNotification),

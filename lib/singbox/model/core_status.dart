@@ -84,7 +84,7 @@ sealed class CoreStatus with _$CoreStatus {
 
   ConnectionFailure? getCoreAlert() {
     return switch (this) {
-      CoreStopped(alert: final alert, message: final message) when alert != null => switch (alert) {
+      CoreStopped(:final alert, :final message) when alert != null => switch (alert) {
         CoreAlert.emptyConfiguration => ConnectionFailure.invalidConfig(message),
 
         CoreAlert.requestNotificationPermission => ConnectionFailure.missingNotificationPermission(message),

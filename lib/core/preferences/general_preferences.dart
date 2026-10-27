@@ -110,6 +110,10 @@ abstract class Preferences {
 
   static final autoCheckIp = PreferencesNotifier.create<bool, bool>("auto_check_ip", true);
 
+  /// When the active outbound's ping times out, switch to another live one.
+  /// Default on: mixed TCP/QUIC subscriptions otherwise stay stuck on a dead UDP node.
+  static final autoFailoverProxy = PreferencesNotifier.create<bool, bool>("auto_failover_proxy", true);
+
   static final startedByUser = PreferencesNotifier.create<bool, bool>("started_by_user", false);
 
   static final storeReviewedByUser = PreferencesNotifier.create<bool, bool>("store_reviewed_by_user", false);

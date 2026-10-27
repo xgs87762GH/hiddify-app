@@ -2,14 +2,18 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:hiddify/core/haptic/haptic_service.dart';
+import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/constants.dart';
+import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/core/preferences/general_preferences.dart';
 import 'package:hiddify/core/utils/throttler.dart';
 import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
+import 'package:hiddify/features/proxy/active/proxy_failover.dart';
 import 'package:hiddify/features/proxy/data/proxy_data_providers.dart';
 import 'package:hiddify/features/proxy/data/proxy_repository.dart';
 import 'package:hiddify/features/proxy/model/ip_info_entity.dart' as oldipinfo;
 import 'package:hiddify/features/proxy/model/proxy_failure.dart';
+import 'package:hiddify/features/proxy/overview/proxies_overview_notifier.dart';
 import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore.pb.dart';
 import 'package:hiddify/hiddifycore/init_signal.dart';
 
@@ -89,6 +93,7 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
       _lastServiceRunning = serviceRunning;
       _wasConnectionValid = false;
       _resubscribeDelay = _minResubscribeDelay;
+      _resetFailoverState();
     }
     if (!serviceRunning) {
       return Stream.error(const ServiceNotRunning());
@@ -110,6 +115,8 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
           // the call fails; only a later one shows the stream really works.
           if (++received > 1) _resubscribeDelay = _minResubscribeDelay;
           _handleConnectionHaptic(info.urlTestDelay);
+          // Leave the stream callback before touching other providers / await.
+          Future.microtask(() => _maybeFailover(info));
         })
         .doOnDone(() {
           // gRPC ends the stream when its connection drops, e.g. once iOS suspends
@@ -134,6 +141,25 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
   static const _maxResubscribeDelay = Duration(seconds: 30);
   Duration _resubscribeDelay = _minResubscribeDelay;
 
+  /// Consecutive timed-out pings before switching. One blip is ignored.
+  static const _minInvalidBeforeFailover = 2;
+  static const _failoverCooldown = Duration(seconds: 20);
+  static const _urlTestCooldown = Duration(seconds: 45);
+
+  int _invalidStreak = 0;
+  bool _failoverInFlight = false;
+  DateTime? _lastFailoverAt;
+  DateTime? _lastUrlTestAt;
+  final Set<String> _triedTags = {};
+
+  void _resetFailoverState() {
+    _invalidStreak = 0;
+    _failoverInFlight = false;
+    _lastFailoverAt = null;
+    _lastUrlTestAt = null;
+    _triedTags.clear();
+  }
+
   void _handleConnectionHaptic(int urlTestDelay) {
     final isValid = ConnectionConst.isValidDelay(urlTestDelay);
     if (isValid == _wasConnectionValid) return;
@@ -147,6 +173,111 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
       haptic.mediumImpact();
       Future.delayed(const Duration(milliseconds: 150), haptic.heavyImpact);
     }
+  }
+
+  Future<void> _maybeFailover(OutboundInfo active) async {
+    if (!ref.read(Preferences.autoFailoverProxy)) return;
+    if (_lastServiceRunning != true) return;
+
+    final delay = active.urlTestDelay;
+    // 0 = not measured yet (still connecting); do not treat as a failure.
+    if (delay == 0) return;
+    if (ConnectionConst.isValidDelay(delay)) {
+      _invalidStreak = 0;
+      _triedTags.clear();
+      return;
+    }
+
+    _invalidStreak++;
+    if (_invalidStreak < _minInvalidBeforeFailover) return;
+    if (_failoverInFlight) return;
+    final last = _lastFailoverAt;
+    if (last != null && DateTime.now().difference(last) < _failoverCooldown) return;
+
+    _failoverInFlight = true;
+    try {
+      await _runFailover(active);
+    } catch (e, st) {
+      loggy.warning("proxy failover failed", e, st);
+    } finally {
+      _failoverInFlight = false;
+    }
+  }
+
+  Future<void> _runFailover(OutboundInfo active) async {
+    final group = await _resolveProxyGroup();
+    if (group == null || group.tag.isEmpty) {
+      loggy.debug("failover: no proxy group available yet");
+      return;
+    }
+
+    final leaf = ProxyFailover.leafTag(active);
+    final exclude = <String>{
+      leaf,
+      active.tag,
+      group.selected,
+      ..._triedTags,
+    };
+
+    final candidates = ProxyFailover.rankedCandidates(group, excludeTags: exclude);
+    if (candidates.isEmpty) {
+      await _urlTestForFailover(group.tag);
+      return;
+    }
+
+    final next = candidates.first;
+    loggy.info(
+      "failover: [$leaf] timed out → [${next.tag}] (${next.urlTestDelay}ms)",
+    );
+    final selected = await _proxyRepo
+        .selectProxy(group.tag, next.tag)
+        .map((_) => true)
+        .getOrElse((err) {
+          loggy.warning("failover select failed", err);
+          return false;
+        })
+        .run();
+    if (!selected) return;
+
+    _triedTags.add(leaf);
+    _triedTags.add(next.tag);
+    _lastFailoverAt = DateTime.now();
+    _invalidStreak = 0;
+
+    final t = ref.read(translationsProvider).requireValue;
+    ref
+        .read(inAppNotificationControllerProvider)
+        .showInfoToast(t.pages.proxies.autoFailoverSwitched(name: ProxyFailover.displayName(next)));
+  }
+
+  Future<OutboundGroup?> _resolveProxyGroup() async {
+    final cached = ref.read(proxiesOverviewNotifierProvider).valueOrNull;
+    if (cached != null && cached.tag.isNotEmpty) return cached;
+
+    try {
+      final group = await _proxyRepo
+          .watchProxies()
+          .map((event) => event.fold((_) => null, (g) => g))
+          .firstWhere((group) => group != null && group.tag.isNotEmpty)
+          .timeout(const Duration(seconds: 2));
+      return group;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _urlTestForFailover(String groupTag) async {
+    final last = _lastUrlTestAt;
+    if (last != null && DateTime.now().difference(last) < _urlTestCooldown) {
+      loggy.debug("failover: url test skipped (cooldown)");
+      return;
+    }
+    _lastUrlTestAt = DateTime.now();
+    // Clear tries so a fresh test can promote previously skipped tags.
+    _triedTags.clear();
+    loggy.info("failover: no live candidate, url-testing [$groupTag]");
+    final result = await _proxyRepo.urlTest(groupTag).run();
+    if (result.isLeft()) loggy.warning("failover url test failed", result);
   }
 
   final _urlTestThrottler = Throttler(const Duration(seconds: 1));
