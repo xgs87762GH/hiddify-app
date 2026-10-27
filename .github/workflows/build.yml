@@ -313,6 +313,18 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           make ${{ matrix.platform }}-release 2>&1 | tee build.log
+      - name: Surface the build error
+        # Logs cannot be read from outside the runner, but annotations can, so echo the
+        # tail of the build as ::error:: lines: that is how a failure gets inspected here.
+        if: failure()
+        continue-on-error: true
+        run: |
+          for f in build.log prepare.log; do
+            [ -f "$f" ] || continue
+            echo "=== tail of $f"
+            tail -n 30 "$f" | while IFS= read -r line; do echo "::error::[$f] $line"; done
+          done
+
       - name: Publish the build logs to the release
         # CI logs need a token to read, so attach them to the release instead.
         if: failure()
@@ -566,6 +578,11 @@ jobs:
         run: |
           ls -R ./out || echo "no out directory"
           mv out/hiddify-android-market.aab  hiddify-android-market.aab || echo "no aab in this release"
+      - name: Surface what was collected
+        if: always()
+        continue-on-error: true
+        run: |
+          ls -la ./out 2>&1 | while IFS= read -r line; do echo "::error::[out] $line"; done
 
       - name: prepare_release_message
         run: |
