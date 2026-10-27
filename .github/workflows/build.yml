@@ -316,6 +316,7 @@ jobs:
       - name: Publish the build logs to the release
         # CI logs need a token to read, so attach them to the release instead.
         if: failure()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -386,20 +387,28 @@ jobs:
               
       - name: Copy to out Android APK
         if: matrix.platform == 'android-apk'
+        # fastforge writes into dist/<version>/, not into build/app/outputs, so look in both
         run: |
-          mkdir out
-          ls -R ./build/app/outputs
-          cp ./build/app/outputs/flutter-apk/*arm64-v8a*.apk out/${TARGET_NAME_apk}-arm64.apk || echo "no arm64 apk"
-          cp ./build/app/outputs/flutter-apk/*armeabi-v7a*.apk out/${TARGET_NAME_apk}-arm7.apk || echo "no arm7 apk"
-          cp ./build/app/outputs/flutter-apk/*x86_64*.apk out/${TARGET_NAME_apk}-x86_64.apk || echo "no x64 apk"
-          cp ./build/app/outputs/flutter-apk/app-release.apk out/${TARGET_NAME_apk}-universal.apk || echo "no universal apk"
+          mkdir -p out
+          ls -R dist || echo "no dist"
+          ls -R ./build/app/outputs || echo "no ./build/app/outputs"
+          for apk in $(find dist ./build/app/outputs -name "*.apk" 2>/dev/null || true); do
+            case "$apk" in
+              *arm64*) suffix=arm64 ;;
+              *armeabi-v7a*) suffix=arm7 ;;
+              *x86_64*) suffix=x86_64 ;;
+              *) suffix=universal ;;
+            esac
+            cp "$apk" "out/${TARGET_NAME_apk}-${suffix}.apk"
+            echo "copied $apk -> out/${TARGET_NAME_apk}-${suffix}.apk"
+          done
 
       - name: Copy to out Android AAB
         if: matrix.platform == 'android-aab'
         run: |
-          mkdir out
-          ls -R ./build/app/outputs
-          cp ./build/app/outputs/bundle/release/app-release.aab out/hiddify-android-market.aab || echo "no aab"
+          mkdir -p out
+          aab=$(ls dist/*/*.aab 2>/dev/null | head -n1)
+          [ -n "$aab" ] && cp "$aab" out/hiddify-android-market.aab || echo "no aab"
 
       - name: Copy to out unix
         if: startsWith(matrix.platform,'linux') || matrix.platform == 'macos' || matrix.platform == 'ios'
@@ -452,21 +461,21 @@ jobs:
         # Without a token the runner's own log cannot be read from the outside, so pull it
         # here and attach it to the release. Temporary aid while this pipeline is repaired.
         if: always()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           job=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
                 --jq ".jobs[] | select(.runner_name == \"$RUNNER_NAME\") | .id" | head -n1)
           echo "job id: $job"
-          if [ -n "$job" ]; then
-            name="job_log-${{ matrix.platform }}.zip"
-            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > "$name"
-            ls -l "$name"
-            if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-              gh release upload "$GITHUB_REF_NAME" "$name" --clobber
-            else
-              echo "no release to attach the logs to yet"
-            fi
+          name="job_log-${{ matrix.platform }}.zip"
+          curl -sSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+               "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" -o "$name"
+          ls -l "$name"
+          if [ -s "$name" ] && gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$name" --clobber
+          else
+            echo "nothing to upload"
           fi
   update-draft:
     permissions: write-all
@@ -555,10 +564,8 @@ jobs:
 
       - name: Display Files Structure
         run: |
-          ls -R ./out
-          ls -R ./.github/
-          ls -R ./.git/
-          mv out/hiddify-android-market.aab  hiddify-android-market.aab
+          ls -R ./out || echo "no out directory"
+          mv out/hiddify-android-market.aab  hiddify-android-market.aab || echo "no aab in this release"
 
       - name: prepare_release_message
         run: |
