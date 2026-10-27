@@ -318,6 +318,8 @@ jobs:
         # tail of the build as ::error:: lines: that is how a failure gets inspected here.
         if: failure()
         continue-on-error: true
+        # Windows runners default to PowerShell, so ask for bash explicitly here.
+        shell: bash
         run: |
           for f in build.log prepare.log; do
             [ -f "$f" ] || continue
@@ -462,6 +464,17 @@ jobs:
           name: ${{matrix.platform}}
           path: ./out
           retention-days: 1
+
+      - name: Surface what was built
+        # Temporary diagnostic: annotations are readable without a token, logs are not.
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          for d in dist out; do
+            echo "=== $d"
+            ls -R "$d" 2>&1 | head -n 25 | while IFS= read -r line; do echo "::error::[$d] $line"; done
+          done
 
       - name: Clean up keychain and provisioning profile
         if: ${{ always() && startsWith(matrix.os,'macos')}}
