@@ -624,7 +624,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # prerelease: ${{ env.CHANNEL == 'dev' }}
-          prerelease: true
+          # A pre-release is skipped by the app's in-app updater (it only picks
+          # releases with preRelease == false), so a real version must not be
+          # published as one.
+          prerelease: false
           tag_name: ${{ env.TAG_NAME }}
           body_path: './release.md'
           files: ./out/*
