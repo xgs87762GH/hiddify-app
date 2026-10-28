@@ -6,7 +6,7 @@
 ## 一、分支纪律（最重要）
 
 - **`main` 永远等于官方**，不承载任何本地改动。它存在的唯一意义是干净地跟踪 `upstream`，用来随时合入官方更新。
-- **任何改动都发生在功能分支上**，命名 `feat/<topic>`、`fix/<topic>`、`chore/<topic>`。当前主分支：`feat/ui-layout-and-fixes`。
+- **任何改动都发生在功能分支上**，命名 `feat/<topic>`、`fix/<topic>`、`chore/<topic>`。当前主分支：`dev-custom`。
 - **禁止向 `main` 提交、禁止 push `upstream`**（upstream 的 push 已禁用，不要再尝试开启）。
 - 官方更新只按快进合并，不产生合并提交、不产生分叉：
 
@@ -56,6 +56,6 @@ git push origin main
 
 ## 五、当前状态速查（更新于 2026-10-23）
 
-- 主分支：`feat/ui-layout-and-fixes`，已推送；`main` 与官方 `4b99aa68` 一致。
+- 主分支：`dev-custom`，已推送；`main` 与官方 `4b99aa68` 一致。
 - 应用版本 5.0.2+50002；安装包在 `dist/`（setup.exe / msix / windows zip / web zip）。
 - 已知遗留：代理列表测速节流 300ms（改它要同步改 `proxies_overview_notifier_test.dart` 的 pump 时长）；`hiddify-core.dll` 86MB 未做裁剪；UI 测试已覆盖 `AppLayout`、首页两栏、代理网格列数。

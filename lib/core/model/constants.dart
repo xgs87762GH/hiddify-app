@@ -14,7 +14,7 @@ abstract class Constants {
   // The appcast lives on the working branch: 'main' mirrors upstream and must
   // stay clean.
   static const appCastUrl =
-      "https://raw.githubusercontent.com/xgs87762GH/hiddify-app/refs/heads/feat/ui-layout-and-fixes/appcast.xml";
+      "https://raw.githubusercontent.com/xgs87762GH/hiddify-app/refs/heads/dev-custom/appcast.xml";
   static const telegramChannelUrl = "https://t.me/hiddify";
   static const privacyPolicyUrl = "https://hiddify.com/privacy-policy/";
   static const termsAndConditionsUrl = "https://hiddify.com/terms/";
