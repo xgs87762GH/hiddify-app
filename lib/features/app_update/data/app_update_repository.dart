@@ -36,13 +36,14 @@ class AppUpdateRepositoryImpl with ExceptionHandler, InfraLogger implements AppU
       }
 
       final releases = response.data!.map((e) => GithubReleaseParser.parse(e as Map<String, dynamic>));
-      late RemoteVersionEntity latest;
-      if (includePreReleases) {
-        latest = releases.first;
-      } else {
-        latest = releases.firstWhere((e) => e.preRelease == false);
+      // An empty feed - the API unreachable, or rate limited - used to throw
+      // here and came back as a bad state in the log on every single start.
+      final candidates = releases.where((e) => includePreReleases || e.preRelease == false).toList();
+      if (candidates.isEmpty) {
+        loggy.warning("no release in the update feed");
+        return left(const AppUpdateFailure.unexpected());
       }
-      return right(latest);
+      return right(candidates.first);
     }, AppUpdateFailure.unexpected);
   }
 }
