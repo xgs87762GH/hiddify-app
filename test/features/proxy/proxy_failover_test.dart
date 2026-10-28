@@ -88,8 +88,8 @@ void main() {
         items: [
           _item(tag: 'Balancer', type: 'balancer', isGroup: true, delay: 0),
           _item(tag: 'quic-node', type: 'hysteria2', delay: 0),
-          _item(tag: 'reality-a', type: 'vless', delay: 0),
-          _item(tag: 'reality-b', type: 'vless', delay: 0),
+          _item(tag: 'reality-a', delay: 0),
+          _item(tag: 'reality-b', delay: 0),
         ],
       );
 
