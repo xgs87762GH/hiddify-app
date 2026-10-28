@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/features/app_update/model/remote_version_entity.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
@@ -13,11 +12,18 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
   final String currentVersion;
   final RemoteVersionEntity newVersion;
 
-  /// Flattens the GitHub release body (markdown) into a short readable summary.
+  /// Flattens the GitHub release body (markdown + HTML) into a readable summary.
   String? _summary() {
     final raw = newVersion.releaseNotes;
     if (raw == null) return null;
-    final lines = raw
+    // Upstream release bodies mix HTML tags, shields.io images and Persian
+    // blocks. Strip the markup before showing anything to the user.
+    final cleaned = raw
+        .replaceAll(RegExp(r'<[^>]+>'), ' ')
+        .replaceAll(RegExp(r'!\[[^\]]*\]\([^)]*\)'), ' ')
+        .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m[1] ?? '')
+        .replaceAll(RegExp(r'&[a-zA-Z0-9#]+;'), ' ');
+    final lines = cleaned
         .split('\n')
         .map((line) {
           var l = line.trim();
@@ -31,7 +37,10 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
         .where((l) => l.isNotEmpty)
         .where((l) => !l.startsWith('<!--'))
         .where((l) => !l.startsWith('All changes from'))
-        .take(12)
+        // Persian/Arabic blocks from the upstream template add nothing here.
+        .where((l) => !RegExp(r'[\u0600-\u06FF]').hasMatch(l))
+        // Standalone URLs are noise once the link text is gone.
+        .where((l) => !RegExp(r'^https?://\S+$').hasMatch(l))
         .join('\n');
     return lines.isEmpty ? null : lines;
   }
@@ -80,10 +89,17 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
       actions: [
         TextButton(
           onPressed: () async {
-            // Remember this version so the startup prompt stops nagging about it;
-            // a later release (a different version) is still announced.
-            await ref.read(appUpdateNotifierProvider.notifier).ignoreRelease(newVersion);
-            if (context.mounted) context.pop();
+            // Close first so the UI never feels stuck, then try to persist the
+            // ignored version. If the write throws (storage unavailable, etc.)
+            // the dialog is already gone and we only log it - the only
+            // consequence is that the prompt reappears next launch, which is the
+            // correct fallback for a genuine persistence failure.
+            Navigator.of(context).pop();
+            try {
+              await ref.read(appUpdateNotifierProvider.notifier).ignoreRelease(newVersion);
+            } catch (e, st) {
+              loggy.warning("failed to save ignored release version", e, st);
+            }
           },
           child: Text(t.common.later),
         ),

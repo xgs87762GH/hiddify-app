@@ -26,10 +26,19 @@ class AboutPage extends HookConsumerWidget {
     final appInfo = ref.watch(appInfoProvider).requireValue;
     final appUpdate = ref.watch(appUpdateNotifierProvider);
 
-    ref.listen(appUpdateNotifierProvider, (_, next) async {
+    ref.listen(appUpdateNotifierProvider, (previous, next) async {
       if (!context.mounted) return;
       switch (next) {
-        case AppUpdateStateAvailable(:final versionInfo) || AppUpdateStateIgnored(:final versionInfo):
+        // Only prompt for a newly discovered update. AppUpdateStateIgnored is
+        // also reached when the user taps "Later", and treating that the same
+        // as Available would immediately re-open the dialog we just closed.
+        case AppUpdateStateAvailable(:final versionInfo):
+          return await ref
+              .read(dialogNotifierProvider.notifier)
+              .showNewVersion(currentVersion: appInfo.presentVersion, newVersion: versionInfo);
+        // Manual "check for update" that lands on a previously dismissed
+        // release: offer it again so the user can reconsider.
+        case AppUpdateStateIgnored(:final versionInfo) when previous is AppUpdateStateChecking:
           return await ref
               .read(dialogNotifierProvider.notifier)
               .showNewVersion(currentVersion: appInfo.presentVersion, newVersion: versionInfo);

@@ -17,23 +17,23 @@
     <description>Hiddify releases</description>
     <language>en</language>
     <item>
-      <title>Version 5.0.6</title>
-      <pubDate>Wed, 28 Oct 2026 15:45:00 +0800</pubDate>
+      <title>Version 5.0.7</title>
+      <pubDate>Wed, 28 Oct 2026 17:20:00 +0800</pubDate>
       <description><![CDATA[
         <ul>
-          <li>更新对话框现在会显示更新内容（发布说明）。</li>
-          <li>点「稍后」后会记住该版本，下次启动不再提示；发布新版本时继续提示。</li>
-          <li>安装向导保持简体中文语言。</li>
+          <li>修复「稍后」后更新弹窗立刻再弹的问题。</li>
+          <li>退出时断开代理改为 5 秒超时并吞掉异常，避免卡死或残留系统代理。</li>
+          <li>更新说明清洗 HTML/徽章噪声；「稍后」写入失败时只记日志不卡界面。</li>
         </ul>
       ]]></description>
       <sparkle:releaseNotesLink>
-        https://github.com/xgs87762GH/hiddify-app/releases/tag/v5.0.6
+        https://github.com/xgs87762GH/hiddify-app/releases/tag/v5.0.7
       </sparkle:releaseNotesLink>
       <enclosure
-        url="https://github.com/xgs87762GH/hiddify-app/releases/download/v5.0.6/Hiddify-Windows-Setup-x64.exe"
-        length="36514868"
+        url="https://github.com/xgs87762GH/hiddify-app/releases/download/v5.0.7/Hiddify-Windows-Setup-x64.exe"
+        length="0"
         type="application/octet-stream"
-        sparkle:version="5.0.6" />
+        sparkle:version="5.0.7" />
     </item>
   </channel>
 </rss>
