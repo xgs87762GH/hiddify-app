@@ -8,6 +8,11 @@ setup_icon_file: windows\runner\resources\app_icon.ico
 locales:
   - ar
   - en
+  # 'zhcn' is a deliberate non-standard code: the packager only maps known locale
+  # codes to a language file under Inno Setup's install dir (and drops the ones it
+  # cannot find), so 'zh' would be filtered out here. This repo ships its own
+  # ChineseSimplified.isl and the script template below points at it.
+  - zhcn
   - es
   - fr
   - pt
