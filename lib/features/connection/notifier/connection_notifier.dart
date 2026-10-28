@@ -54,7 +54,14 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
     });
     ref.watch(coreRestartSignalProvider);
 
-    yield* _connectionRepo.watchConnectionStatus().doOnData((event) {
+    // What the home page shows comes from this stream alone, so when it is
+    // opened again - the core was set up on a new channel - is worth a line:
+    // a button that never left its loading state was a reopen no one could see.
+    yield* _connectionRepo.watchConnectionStatus().doOnListen(() {
+      loggy.info("connection status stream opened");
+    }).doOnCancel(() {
+      loggy.info("connection status stream closed");
+    }).doOnData((event) {
       if (event case Disconnected(connectionFailure: final _?) when PlatformUtils.isDesktop) {
         Future.microtask(() => ref.read(Preferences.startedByUser.notifier).update(false));
       }
@@ -98,6 +105,7 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
   }
 
   Future<void> toggleConnection() async {
+    loggy.info("toggle requested, status [$state]");
     final haptic = ref.read(hapticServiceProvider.notifier);
     if (state case AsyncError()) {
       await haptic.lightImpact();
@@ -160,7 +168,9 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
     // that only works if this returns when the connect actually finished
     // instead of while it is still running in the background.
     if (_singleStart.isRunning) {
-      loggy.debug("connect called while another connect/disconnect is still running, ignoring");
+      // A connect that never finishes - a core call that hangs - swallows
+      // every tap after it, so this line is what makes that visible.
+      loggy.warning("connect called while another connect/disconnect is still running, ignoring");
     }
     await _singleStart.run<bool>(
       () async {
@@ -181,6 +191,7 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
   }
 
   Future<void> _connectThrottled() async {
+    loggy.info("connecting, status [$state]");
     final activeProfile = await ref.read(activeProfileProvider.future);
     if (activeProfile == null) {
       loggy.info("no active profile, not connecting");
@@ -209,9 +220,11 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
       }
       await startedByUser.update(false);
     }).run();
+    loggy.info("connect finished, status [$state]");
   }
 
   Future<void> _disconnect() async {
+    loggy.info("disconnecting, status [$state]");
     await _connectionRepo.disconnect().mapLeft((err) {
       loggy.warning("error disconnecting", err);
       ref

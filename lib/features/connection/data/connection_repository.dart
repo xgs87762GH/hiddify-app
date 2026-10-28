@@ -86,12 +86,18 @@ class ConnectionRepositoryImpl with ExceptionHandler, InfraLogger implements Con
   Stream<bool> watchHotReloading() => singbox.watchStatus().map((event) => event is CoreHotReloading).distinct();
 
   @override
-  TaskEither<ConnectionFailure, Unit> connect(ProfileEntity activeProfile, bool disableMemoryLimit) => setup().flatMap(
-    (_) => applyConfigOption(activeProfile).flatMap(
-      (_) => singbox.start(profilePathResolver.file(activeProfile.id).path, activeProfile.name, disableMemoryLimit),
-      // .mapLeft(UnexpectedConnectionFailure.new),
-    ),
-  );
+  TaskEither<ConnectionFailure, Unit> connect(ProfileEntity activeProfile, bool disableMemoryLimit) {
+    // Connecting starts here, not at the start call below: the setup in between
+    // would otherwise publish the stopped state the engine is replacing, see
+    // [HiddifyCoreService.markStarting].
+    singbox.markStarting();
+    return setup().flatMap(
+      (_) => applyConfigOption(activeProfile).flatMap(
+        (_) => singbox.start(profilePathResolver.file(activeProfile.id).path, activeProfile.name, disableMemoryLimit),
+        // .mapLeft(UnexpectedConnectionFailure.new),
+      ),
+    );
+  }
 
   @override
   TaskEither<ConnectionFailure, Unit> disconnect() => singbox.stop().mapLeft(UnexpectedConnectionFailure.new);

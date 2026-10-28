@@ -13,6 +13,7 @@ import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
 import 'package:hiddify/features/profile/notifier/active_profile_notifier.dart';
 import 'package:hiddify/features/proxy/active/active_proxy_notifier.dart';
 import 'package:hiddify/gen/assets.gen.dart';
+import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 /// What the button shows, one value per look.
@@ -41,7 +42,7 @@ _Look _lookOf(AsyncValue<ConnectionStatus> status, int delay, bool hotReloading)
   _ => _Look.loading,
 };
 
-class ConnectionButton extends HookConsumerWidget {
+class ConnectionButton extends HookConsumerWidget with PresLogger {
   const ConnectionButton({super.key, this.size = AppLayout.maxButtonSize});
 
   /// Diameter of the round button, handed down by the page: the home page
@@ -67,6 +68,17 @@ class ConnectionButton extends HookConsumerWidget {
       AsyncData(value: Connected()) => () => ref.read(connectionNotifierProvider.notifier).toggleConnection(),
       _ => null,
     };
+
+    // What the button shows and whether a tap does anything, one line per
+    // change: the look is picked from three providers and the tap is off for
+    // half of the looks, so "nothing happens" has to be readable from here.
+    final canTap = onTap != null;
+    useEffect(() {
+      loggy.info(
+        "button: look [$look] status [$status] delay [$delay]ms hotReload [$hotReloading] tap ${canTap ? "on" : "off"}",
+      );
+      return null;
+    }, [look, canTap]);
 
     const buttonTheme = ConnectionButtonTheme.light;
     final today = DateTime.now();
