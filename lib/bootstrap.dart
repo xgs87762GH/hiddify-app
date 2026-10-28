@@ -32,6 +32,7 @@ import 'package:hiddify/hiddifycore/hiddify_core_service_provider.dart';
 import 'package:hiddify/riverpod_observer.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:logging/logging.dart' as logging;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async {
@@ -61,6 +62,11 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   await _init("directories", () => container.read(appDirectoriesProvider.future));
   // phase 2 — the folders exist, so app.log can be opened
   logAddFile(container.read(logPathResolverProvider).appFile().path);
+  // A dev build keeps the whole flow in app.log, not only the errors: the
+  // lifecycle and the connection status are what the home page shows, and a
+  // button that does nothing fails nowhere near loudly enough to be seen
+  // otherwise.
+  if (env == Environment.dev) logSetFileLevel(logging.Level.INFO);
   // The engine appends to its own log for the life of the install and never
   // rotates it. It is not running yet, which is the only time it can be cut.
   container.read(logPathResolverProvider).trimCoreLog();

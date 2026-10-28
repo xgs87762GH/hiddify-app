@@ -146,7 +146,7 @@ void _toConsole(LogRecord r) {
 
 // ---------------------------------------------------------------------- file
 
-/// Errors only.
+/// Errors only, unless a dev build asks for the whole flow.
 ///
 /// The file exists to survive a crash, and everything quieter than an error is
 /// already somewhere better: the page reads the in-memory ring, and the engine
@@ -154,8 +154,17 @@ void _toConsole(LogRecord r) {
 /// keeps it small; the sink still caps it at 1 MiB and rotates, because a core
 /// that fails on every reconnect can produce errors faster than anyone reads
 /// them.
+///
+/// A dev build lowers this to INFO: the lifecycle and the connection status are
+/// what the home page shows, and neither of them fails loudly, so a button that
+/// does nothing leaves nothing behind at the level errors are kept at.
+Level _fileLevel = Level.SEVERE;
+
+/// The level the file sink keeps, see [_fileLevel].
+void logSetFileLevel(Level level) => _fileLevel = level;
+
 void _toFile(LogRecord r) {
-  if (r.level < Level.SEVERE) return;
+  if (r.level < _fileLevel) return;
   writeLogLine(formatRecord(r));
   // The error and its stack are the part that says why, and this file is the
   // only sink that outlives the process. Without them a bootstrap failure
