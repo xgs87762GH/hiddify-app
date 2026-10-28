@@ -113,7 +113,10 @@ class ActiveProxyNotifier extends _$ActiveProxyNotifier with AppLogger {
         // opened again below.
         .where((event) => event.isRight())
         .map((event) => event.getOrElse((l) => List<OutboundGroup>.empty()))
-        .map((event) => event.firstOrNull?.items.first ?? OutboundInfo())
+        // A group the core has not filled yet arrives with no items; reading
+        // .first there killed the whole active-proxy stream with a
+        // StateError and left the home page without a ping for good.
+        .map((event) => event.firstOrNull?.items.firstOrNull ?? OutboundInfo())
         .doOnData((info) {
           // The first event is the core service's cached list, sent even when
           // the call fails; only a later one shows the stream really works.
