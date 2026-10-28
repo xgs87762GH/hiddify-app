@@ -6,9 +6,15 @@ abstract class Constants {
   static const appName = "Hiddify";
   static const githubUrl = "https://github.com/hiddify/hiddify-next";
   static const licenseUrl = "https://github.com/hiddify/hiddify-next?tab=License-1-ov-file#readme";
-  static const githubReleasesApiUrl = "https://api.github.com/repos/hiddify/hiddify-next/releases";
-  static const githubLatestReleaseUrl = "https://github.com/hiddify/hiddify-app/releases/latest";
-  static const appCastUrl = "https://raw.githubusercontent.com/hiddify/hiddify-next/main/appcast.xml";
+  // This fork publishes its own releases, so both update checkers must read it
+  // instead of upstream: the custom one hits the Releases API, the `upgrader`
+  // one reads the appcast.
+  static const githubReleasesApiUrl = "https://api.github.com/repos/xgs87762GH/hiddify-app/releases";
+  static const githubLatestReleaseUrl = "https://github.com/xgs87762GH/hiddify-app/releases/latest";
+  // The appcast lives on the working branch: 'main' mirrors upstream and must
+  // stay clean.
+  static const appCastUrl =
+      "https://raw.githubusercontent.com/xgs87762GH/hiddify-app/refs/heads/feat/ui-layout-and-fixes/appcast.xml";
   static const telegramChannelUrl = "https://t.me/hiddify";
   static const privacyPolicyUrl = "https://hiddify.com/privacy-policy/";
   static const termsAndConditionsUrl = "https://hiddify.com/terms/";
