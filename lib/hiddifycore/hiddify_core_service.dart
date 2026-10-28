@@ -195,17 +195,26 @@ class HiddifyCoreService with InfraLogger {
         loggy.error("failed to start bg core: $e");
         ref.read(coreRestartSignalProvider.notifier).restart();
         final message = e.message ?? "";
-        if (e.code == StatusCode.unavailable) {
-          return left(const ConnectionFailure.unexpected("background core is not started yet!"));
-        }
-        if (message.isEmpty) {
-          return left(const ConnectionFailure.unexpected("failed to start background core"));
-        }
-        // The core words these itself, in English on every system language, so
-        // the text is the only thing that tells "elevate the app" apart from
-        // "this config is broken". One place decides, and it covers Windows'
-        // two spellings, Linux and macOS (issues #2276, #2224).
-        return left(CoreStartFailure.fromMessage(message));
+        final failure = switch (e) {
+          _ when e.code == StatusCode.unavailable =>
+            const ConnectionFailure.unexpected("background core is not started yet!"),
+          _ when message.isEmpty => const ConnectionFailure.unexpected("failed to start background core"),
+          // The core words these itself, in English on every system language, so
+          // the text is the only thing that tells "elevate the app" apart from
+          // "this config is broken". One place decides, and it covers Windows'
+          // two spellings, Linux and macOS (issues #2276, #2224).
+          _ => CoreStartFailure.fromMessage(message),
+        };
+        // The status stream still holds "starting" here, and the restart signal
+        // above makes the connection notifier reopen it: whatever the stream
+        // holds then is what the button shows. Leaving "starting" in it kept the
+        // button on "Connecting…" with the tap disabled until the app was
+        // restarted, so the failure is mirrored onto the status the way the
+        // non-gRPC path above does. A core that started anyway overrides this
+        // with its own event.
+        currentState = CoreStatus.stopped(alert: _alertFor(failure), message: message);
+        statusController.add(currentState);
+        return left(failure);
       }
 
       // if (res.messageType != MessageType.EMPTY) return left(res);
