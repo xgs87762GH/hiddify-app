@@ -19,6 +19,7 @@ import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.
 import 'package:hiddify/core/theme/app_theme.dart';
 import 'package:hiddify/core/theme/theme_preferences.dart';
 import 'package:hiddify/features/app_based_routing/overview/app_based_routing_notifier.dart';
+import 'package:hiddify/features/app_update/model/app_update_prompt.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
 import 'package:hiddify/features/connection/widget/connection_wrapper.dart';
@@ -34,6 +35,8 @@ import 'package:upgrader/upgrader.dart';
 bool _debugAccessibility = false;
 bool isOnPauseCalled = false;
 
+final _startupUpdateLog = appLogger('StartupUpdateCheck');
+
 /// Waits long enough for the appcast alert to come up on its own: it is the
 /// primary path because its button links straight to the installer, while the
 /// custom GitHub Releases check only opens the release page.
@@ -42,8 +45,16 @@ const _startupUpdateCheckDelay = Duration(seconds: 6);
 Future<void> _checkForUpdateOnStartup(WidgetRef ref, Upgrader upgrader) async {
   await Future<void>.delayed(_startupUpdateCheckDelay);
   await upgrader.initialize();
-  if (upgrader.isUpdateAvailable()) return;
+  // Appcast owns the prompt when it has something — avoid two dialogs at once.
+  if (upgrader.isUpdateAvailable()) {
+    _startupUpdateLog.debug("skip GitHub prompt: appcast already offering an update");
+    return;
+  }
   final state = await ref.read(appUpdateNotifierProvider.notifier).check();
+  if (!AppUpdatePrompt.shouldShowPassively(state)) {
+    _startupUpdateLog.debug("skip GitHub prompt: state=${state.runtimeType}");
+    return;
+  }
   if (state case AppUpdateStateAvailable(:final versionInfo)) {
     final appInfo = ref.read(appInfoProvider).requireValue;
     await ref.read(dialogNotifierProvider.notifier).showNewVersion(

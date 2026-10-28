@@ -27,13 +27,18 @@ import 'package:hiddify/features/common/qr_code_scanner_screen.dart';
 import 'package:hiddify/features/settings/data/config_option_repository.dart';
 import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore.pb.dart';
 import 'package:hiddify/singbox/model/singbox_config_enum.dart';
+import 'package:hiddify/utils/utils.dart';
 import 'package:protobuf/protobuf.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'dialog_notifier.g.dart';
 
 @Riverpod(keepAlive: true)
-class DialogNotifier extends _$DialogNotifier {
+class DialogNotifier extends _$DialogNotifier with AppLogger {
+  /// Prevents startup + About from stacking two update dialogs on the same
+  /// [AppUpdateStateAvailable] transition.
+  bool _newVersionOpen = false;
+
   @override
   void build() {}
 
@@ -108,7 +113,22 @@ class DialogNotifier extends _$DialogNotifier {
     required String currentVersion,
     required RemoteVersionEntity newVersion,
   }) async {
-    return await _show<void>(NewVersionDialog(currentVersion, newVersion));
+    if (_newVersionOpen) {
+      loggy.debug(
+        "update dialog already open, skip duplicate for [${newVersion.version}]",
+      );
+      return;
+    }
+    _newVersionOpen = true;
+    loggy.info(
+      "showing update dialog [${newVersion.version}] "
+      "(notes=${newVersion.releaseNotes == null ? 'none' : '${newVersion.releaseNotes!.length} chars'})",
+    );
+    try {
+      await _show<void>(NewVersionDialog(currentVersion, newVersion));
+    } finally {
+      _newVersionOpen = false;
+    }
   }
 
   Future<bool> showConfirmation({

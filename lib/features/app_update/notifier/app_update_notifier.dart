@@ -43,11 +43,11 @@ class AppUpdateNotifier extends _$AppUpdateNotifier with AppLogger {
   );
 
   Future<AppUpdateState> check() async {
-    loggy.debug("checking for update");
+    loggy.debug("checking for update (current=${ref.read(appInfoProvider).requireValue.version})");
     state = const AppUpdateState.checking();
     final appInfo = ref.watch(appInfoProvider).requireValue;
     if (!appInfo.release.allowCustomUpdateChecker) {
-      loggy.debug("custom update checkers are not allowed for [${appInfo.release.name}] release");
+      loggy.debug("custom update checkers disabled for [${appInfo.release.name}]");
       return state = const AppUpdateState.disabled();
     }
     return ref
@@ -64,13 +64,17 @@ class AppUpdateNotifier extends _$AppUpdateNotifier with AppLogger {
               final currentVersion = Version.parse(appInfo.version);
               if (latestVersion > currentVersion) {
                 if (remote.version == _ignoreReleasePref.read()) {
-                  loggy.debug("ignored release [${remote.version}]");
+                  // Do not dump releaseNotes — bodies are HTML-heavy and noisy.
+                  loggy.info("latest [${remote.version}] was dismissed by user");
                   return state = AppUpdateStateIgnored(remote);
                 }
-                loggy.debug("new version available: $remote");
+                loggy.info(
+                  "update available [${remote.version}] "
+                  "(notes=${remote.releaseNotes == null ? 'none' : '${remote.releaseNotes!.length} chars'})",
+                );
                 return state = AppUpdateState.available(remote);
               }
-              loggy.info("already using latest version[$currentVersion], remote: [${remote.version}]");
+              loggy.debug("up to date: local=$currentVersion remote=${remote.version}");
               return state = const AppUpdateState.notAvailable();
             } catch (error, stackTrace) {
               loggy.warning("error parsing versions", error, stackTrace);
@@ -82,7 +86,7 @@ class AppUpdateNotifier extends _$AppUpdateNotifier with AppLogger {
   }
 
   Future<void> ignoreRelease(RemoteVersionEntity version) async {
-    loggy.debug("ignoring release [${version.version}]");
+    loggy.info("remembering dismissed release [${version.version}]");
     await _ignoreReleasePref.write(version.version);
     state = AppUpdateStateIgnored(version);
   }

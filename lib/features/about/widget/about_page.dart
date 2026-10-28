@@ -11,13 +11,14 @@ import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/core/theme/app_layout.dart';
 import 'package:hiddify/core/widget/adaptive_icon.dart';
+import 'package:hiddify/features/app_update/model/app_update_prompt.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
 import 'package:hiddify/gen/assets.gen.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class AboutPage extends HookConsumerWidget {
+class AboutPage extends HookConsumerWidget with PresLogger {
   const AboutPage({super.key});
 
   @override
@@ -29,16 +30,9 @@ class AboutPage extends HookConsumerWidget {
     ref.listen(appUpdateNotifierProvider, (previous, next) async {
       if (!context.mounted) return;
       switch (next) {
-        // Only prompt for a newly discovered update. AppUpdateStateIgnored is
-        // also reached when the user taps "Later", and treating that the same
-        // as Available would immediately re-open the dialog we just closed.
-        case AppUpdateStateAvailable(:final versionInfo):
-          return await ref
-              .read(dialogNotifierProvider.notifier)
-              .showNewVersion(currentVersion: appInfo.presentVersion, newVersion: versionInfo);
-        // Manual "check for update" that lands on a previously dismissed
-        // release: offer it again so the user can reconsider.
-        case AppUpdateStateIgnored(:final versionInfo) when previous is AppUpdateStateChecking:
+        case AppUpdateStateAvailable(:final versionInfo) || AppUpdateStateIgnored(:final versionInfo)
+            when AppUpdatePrompt.shouldShowAfterManualCheck(previous, next):
+          loggy.debug("About check → show update dialog [${versionInfo.version}]");
           return await ref
               .read(dialogNotifierProvider.notifier)
               .showNewVersion(currentVersion: appInfo.presentVersion, newVersion: versionInfo);
