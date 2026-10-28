@@ -107,9 +107,8 @@ class DialogNotifier extends _$DialogNotifier {
   Future<void> showNewVersion({
     required String currentVersion,
     required RemoteVersionEntity newVersion,
-    required bool canIgnore,
   }) async {
-    return await _show<void>(NewVersionDialog(currentVersion, newVersion, canIgnore: canIgnore));
+    return await _show<void>(NewVersionDialog(currentVersion, newVersion));
   }
 
   Future<bool> showConfirmation({

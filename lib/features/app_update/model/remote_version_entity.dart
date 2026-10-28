@@ -15,6 +15,8 @@ class RemoteVersionEntity with _$RemoteVersionEntity {
     required String url,
     required DateTime publishedAt,
     required Environment flavor,
+    /// The release notes (GitHub release body), shown in the update dialog.
+    String? releaseNotes,
   }) = _RemoteVersionEntity;
 
   String get presentVersion => flavor == Environment.prod ? version : "$version ${flavor.name}";

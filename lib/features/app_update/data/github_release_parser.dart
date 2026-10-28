@@ -23,6 +23,7 @@ abstract class GithubReleaseParser {
     }
     final preRelease = json["prerelease"] as bool;
     final publishedAt = DateTime.parse(json["published_at"] as String);
+    final body = json["body"] as String?;
     return RemoteVersionEntity(
       version: version,
       buildNumber: buildNumber,
@@ -31,6 +32,7 @@ abstract class GithubReleaseParser {
       url: json["html_url"] as String,
       publishedAt: publishedAt,
       flavor: flavor,
+      releaseNotes: (body == null || body.trim().isEmpty) ? null : body,
     );
   }
 }

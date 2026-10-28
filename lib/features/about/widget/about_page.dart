@@ -32,7 +32,7 @@ class AboutPage extends HookConsumerWidget {
         case AppUpdateStateAvailable(:final versionInfo) || AppUpdateStateIgnored(:final versionInfo):
           return await ref
               .read(dialogNotifierProvider.notifier)
-              .showNewVersion(currentVersion: appInfo.presentVersion, newVersion: versionInfo, canIgnore: false);
+              .showNewVersion(currentVersion: appInfo.presentVersion, newVersion: versionInfo);
         case AppUpdateStateError(:final error):
           return ref.read(inAppNotificationControllerProvider).showErrorToast(t.presentShortError(error));
         case AppUpdateStateNotAvailable():

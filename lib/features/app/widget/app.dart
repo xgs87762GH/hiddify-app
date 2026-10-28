@@ -49,7 +49,6 @@ Future<void> _checkForUpdateOnStartup(WidgetRef ref, Upgrader upgrader) async {
     await ref.read(dialogNotifierProvider.notifier).showNewVersion(
       currentVersion: appInfo.presentVersion,
       newVersion: versionInfo,
-      canIgnore: true,
     );
   }
 }
