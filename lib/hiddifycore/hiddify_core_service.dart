@@ -48,7 +48,32 @@ class HiddifyCoreService with InfraLogger {
   static const _maxRearmDelay = Duration(seconds: 30);
   Duration _rearmDelay = _minRearmDelay;
 
+  /// A setup that is already running, so a second one joins it instead of
+  /// replacing the gRPC channel underneath whatever is using it.
+  ///
+  /// Every resume calls [init]. A resume that lands while a connect is on its
+  /// way to the core used to run the whole setup again, and the new channel made
+  /// the start call and the status listener race with the ones already in
+  /// flight.
+  Future<void>? _initInFlight;
+
   Future<void> init() async {
+    final inFlight = _initInFlight;
+    if (inFlight != null) {
+      loggy.debug("core setup already running, joining it");
+      return inFlight;
+    }
+    final run = _runInit();
+    _initInFlight = run;
+    try {
+      return await run;
+    } finally {
+      _initInFlight = null;
+    }
+  }
+
+  Future<void> _runInit() async {
+    loggy.info("core setup requested");
     await setup()
         .mapLeft((e) {
           loggy.error(e);
@@ -102,13 +127,30 @@ class HiddifyCoreService with InfraLogger {
           return left(setupResponse);
         }
 
+        // A new channel leaves the listeners opened on the old one talking to
+        // a connection nothing answers any more, and they have to go before the
+        // ones below are opened - otherwise the app keeps the dead ones and
+        // never gets the status of the new channel at all.
+        if (core.channelReplaced) {
+          loggy.info("core channel replaced, dropping the listeners opened on the old one");
+          await stopListenSingle("fg");
+          await stopListenSingle("bg");
+        }
+
         await startListeningLogs("fg", core.fgClient);
         // await startListeningStatus("fg", core.fgClient);
         if (!core.isSingleChannel()) {
           await startListeningLogs("bg", core.bgClient);
         }
-        statusController.add(currentState);
-        await startListeningStatus("bg", core.bgClient);
+        // Held back while a connect is on its way: the state the engine was in
+        // before it is not one the user is in, see [markStarting].
+        if (!_holdInterimStop) statusController.add(currentState);
+        // Only when nothing is listening: a listener opened while the core is
+        // being started is answered at once with the state the core is in at
+        // that moment - stopped - and the button flipped back to "tap to
+        // connect" for the rest of the start. A listener that dies later is
+        // reopened by the re-arm below.
+        if (!statusListening) await startListeningStatus("bg", core.bgClient);
         // ref.read(coreRestartSignalProvider.notifier).restart();
         return right(unit);
       } catch (e) {
@@ -141,8 +183,21 @@ class HiddifyCoreService with InfraLogger {
     });
   }
 
+  /// The state the app is in from the moment a connect is asked for.
+  ///
+  /// A connect sets up the core before it starts it, and the setup publishes
+  /// the state the engine was in - stopped - which flashed the button back to
+  /// "tap to connect" right after the tap. The app is connecting from here on.
+  void markStarting() {
+    _startPending();
+    statusController.add(currentState = const CoreStatus.starting());
+  }
+
   TaskEither<ConnectionFailure, Unit> start(String path, String name, bool disableMemoryLimit) {
     return TaskEither(() async {
+      // From here until the engine reports the tunnel up, a stop it reports is
+      // the one it makes on the way up, see [_holdInterimStop].
+      _startPending();
       statusController.add(currentState = const CoreStatus.starting());
       loggy.debug("starting");
       final background = await core.setupBackground(path, name);
@@ -158,7 +213,7 @@ class HiddifyCoreService with InfraLogger {
       await startListeningLogs("fg", core.fgClient);
       if (!core.isSingleChannel()) {
         await startListeningLogs("bg", core.bgClient);
-        await startListeningStatus("bg", core.bgClient);
+        if (!statusListening) await startListeningStatus("bg", core.bgClient);
       }
       // if (latestOptions != null) {
       //   await core.bgClient.changeHiddifySettings(
@@ -185,6 +240,8 @@ class HiddifyCoreService with InfraLogger {
           // through to a generic "start failed". Same classifier as the error
           // path now, so both report the cause the user can act on.
           final failure = CoreStartFailure.fromMessage(res.message);
+          // The start is over and it failed: nothing is held back any more.
+          _startSettled();
           currentState = CoreStatus.stopped(alert: _alertFor(failure), message: res.message);
 
           statusController.add(currentState);
@@ -193,6 +250,7 @@ class HiddifyCoreService with InfraLogger {
         }
       } on GrpcError catch (e) {
         loggy.error("failed to start bg core: $e");
+        _startSettled();
         ref.read(coreRestartSignalProvider.notifier).restart();
         final message = e.message ?? "";
         final failure = switch (e) {
@@ -238,6 +296,8 @@ class HiddifyCoreService with InfraLogger {
 
   TaskEither<String, Unit> stop() {
     return TaskEither(() async {
+      // A stop is asked for here, so nothing is held back from the UI any more.
+      _startSettled();
       loggy.debug("stopping");
       var errMsg = "";
       try {
@@ -485,10 +545,57 @@ class HiddifyCoreService with InfraLogger {
   // }
 
   Stream<CoreStatus> watchStatus() async* {
-    await startListeningStatus("bg", core.bgClient);
+    // The status known now, before anything is awaited. Arming the listener is
+    // a gRPC call, and awaiting it here held back every status behind it: a
+    // listener that was slow, or whose cancel never came back, left the
+    // connection notifier in its loading state for good, which the button
+    // shows as no spinner, no label and no connection.
+    yield currentState;
+    // See [statusListening]: a listener is only opened when there is none. The
+    // core answers a fresh one with the state it is in at that moment, so
+    // reopening on every rebuild of this stream is what made the status fall
+    // back to disconnected in the middle of a connect.
+    // Nothing to listen on yet while the very first setup is still running; it
+    // arms the listener itself, and touching the client before that fails.
+    if (!statusListening && core.isInitialized()) await startListeningStatus("bg", core.bgClient);
     yield* statusController.stream;
     // .endWith(const CoreStatus.stopped());
   }
+
+  /// The key the status listener is kept under, see [statusListening].
+  static const _statusListenerKey = "bgStatusListener";
+
+  /// Whether a start is out and the engine has not reported the tunnel up yet.
+  ///
+  /// The engine stops the tunnel it is replacing before it brings the new one
+  /// up and reports that stop on the status stream, seconds before the tunnel
+  /// is actually up. It is not a state the user is in: it flipped the button
+  /// back to "tap to connect" for the whole start, and the connection only
+  /// showed once it was established - which reads exactly like a tap that did
+  /// nothing. A stop that carries an alert is a start that failed and is never
+  /// held back.
+  bool _startInFlight = false;
+  DateTime? _startInFlightDeadline;
+
+  bool get _holdInterimStop =>
+      _startInFlight && (_startInFlightDeadline == null || DateTime.now().isBefore(_startInFlightDeadline!));
+
+  void _startPending() {
+    _startInFlight = true;
+    _startInFlightDeadline = DateTime.now().add(const Duration(seconds: 30));
+  }
+
+  void _startSettled() {
+    _startInFlight = false;
+    _startInFlightDeadline = null;
+  }
+
+  /// Whether a status listener is open.
+  ///
+  /// Reopening one is how the app recovers from a dead channel, but the core
+  /// answers a fresh listener with the state it is in right then, so one is
+  /// only opened when there is none.
+  bool get statusListening => subscriptions.containsKey(_statusListenerKey);
 
   Future<void> startListeningStatus(String key, CoreClient cc) async {
     await listenSingle<CoreStatus>(
@@ -512,7 +619,25 @@ class HiddifyCoreService with InfraLogger {
           // the core itself.
           .map((event) {
             _rearmDelay = _minRearmDelay;
-            currentState = CoreStatus.fromCoreInfo(event);
+            final next = CoreStatus.fromCoreInfo(event);
+            if (next case CoreStopped(alert: null) when _holdInterimStop) {
+              // A stop the engine reports on its way up, see [_holdInterimStop].
+              return currentState;
+            }
+            switch (next) {
+              case CoreStarted() || CoreHotReloading():
+                // The tunnel is up, so nothing is held back any more. Starting
+                // is not enough: the engine starts, stops what it replaces and
+                // only then comes up, and the wait has to outlast that.
+                _startSettled();
+              case CoreStopped():
+                // A start that failed carries an alert; a plain stop once the
+                // deadline has passed ends the wait just the same.
+                _startSettled();
+              default:
+                break;
+            }
+            currentState = next;
             statusController.add(currentState);
             return currentState;
           }),
@@ -583,7 +708,10 @@ class HiddifyCoreService with InfraLogger {
     Function(dynamic error)? onError,
   }) async {
     if (subscriptions.containsKey(key)) {
-      // return subscriptions[key] as StreamSubscription<T>?;
+      // Replacing a listener is ordinary - a resume, a core restart - but a
+      // listener that is replaced again and again never gets to deliver
+      // anything, which is how the status stopped reaching the home page.
+      loggy.info("subscription [$key] already open, replacing it");
       await stopListenSingle(key);
     }
     subscriptions[key] = null;

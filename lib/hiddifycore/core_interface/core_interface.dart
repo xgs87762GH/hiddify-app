@@ -10,6 +10,13 @@ class CoreInterface {
     return "";
   }
 
+  /// Whether the last [setup] opened a new connection to the core, which leaves
+  /// every listener opened on the previous one talking to nothing.
+  ///
+  /// True by default: an implementation that does not say otherwise gets its
+  /// listeners reopened, which is always safe, only slower.
+  bool get channelReplaced => true;
+
   Future<CoreStatus> setupBackground(String path, String name) async {
     return const CoreStarted();
   }

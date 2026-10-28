@@ -57,6 +57,12 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
     }
   }
 
+  /// Set by [setup], see [CoreInterface.channelReplaced].
+  bool _channelReplaced = true;
+
+  @override
+  bool get channelReplaced => _channelReplaced;
+
   final port = 17078;
   static String generateRandomPassword(int length) {
     const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -68,12 +74,39 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
 
   ClientChannel? _channel;
 
+  /// Whether the core answers on [channel].
+  ///
+  /// Bounded: a call to a core that is gone waits forever otherwise, and the
+  /// whole setup - with everything awaiting it - waits along with it.
+  Future<bool> _hello(ClientChannel channel) async {
+    try {
+      await HelloClient(channel).sayHello(
+        HelloRequest(name: "test"),
+        options: CallOptions(timeout: const Duration(seconds: 2)),
+      );
+      return true;
+    } catch (e) {
+      loggy.debug("hello failed: $e");
+      return false;
+    }
+  }
+
   @override
   Future<String> setup(Directories directories, bool debug, int mode) async {
-    // Generate a random password for the grpc service
-    // final errPtr2 = _box.stop();
-    // final err = errPtr2.cast<Utf8>().toDartString();
-    // throw Exception('stop: $err');
+    // A resume, a reconnect and every connect run setup, and replacing the
+    // channel each time moved the listeners the UI reads onto a new connection
+    // in the middle of the connect: the status then came back as stopped while
+    // the core was starting, and the button flipped to "tap to connect" and
+    // back. A channel that still answers is kept.
+    if (_channel case final existing?) {
+      if (await _hello(existing)) {
+        _channelReplaced = false;
+        loggy.info("core channel still answering, keeping it");
+        return "";
+      }
+      loggy.info("core channel is gone, setting up again");
+    }
+    _channelReplaced = true;
     const channelOption = ChannelCredentials.insecure();
     final helloChannel = ClientChannel(
       '127.0.0.1',
@@ -83,7 +116,7 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
     final helloClient = HelloClient(helloChannel);
 
     try {
-      await helloClient.sayHello(HelloRequest(name: "test"));
+      await helloClient.sayHello(HelloRequest(name: "test"), options: CallOptions(timeout: const Duration(seconds: 4)));
       loggy.info("core is already started!");
     } catch (e) {
       //core is not started yet
@@ -103,7 +136,10 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
       if (err.isNotEmpty) {
         return err;
       }
-      final res = await helloClient.sayHello(HelloRequest(name: "test"));
+      final res = await helloClient.sayHello(
+        HelloRequest(name: "test"),
+        options: CallOptions(timeout: const Duration(seconds: 4)),
+      );
       loggy.info(res.toString());
     } finally {
       unawaited(helloChannel.shutdown());
