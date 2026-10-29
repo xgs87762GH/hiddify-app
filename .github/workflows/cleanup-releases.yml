@@ -1,0 +1,50 @@
+name: Cleanup releases
+
+# One-shot / on-demand: normalize release titles, strip duplicate version H1s from
+# bodies, and delete the standing "draft" release left by upstream CI.
+
+on:
+  push:
+    branches:
+      - dev-custom
+    paths:
+      - '.github/workflows/cleanup-releases.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Normalize release list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+
+          # Delete published "draft" releases (and the draft tag).
+          gh api "repos/${repo}/releases" --paginate \
+            --jq '.[] | select(.tag_name=="draft" or .name=="draft") | .id' \
+          | while read -r id; do
+              [ -n "${id}" ] || continue
+              echo "deleting draft release id=${id}"
+              gh api -X DELETE "repos/${repo}/releases/${id}"
+            done
+          gh api -X DELETE "repos/${repo}/git/refs/tags/draft" 2>/dev/null || true
+
+          gh api "repos/${repo}/releases" --paginate \
+            --jq '.[] | select(.tag_name!="draft") | [.id,.tag_name,.name] | @tsv' \
+          | while IFS=$'\t' read -r id tag name; do
+              [ -n "${id}" ] || continue
+              body="$(gh api "repos/${repo}/releases/${id}" --jq '.body // empty')"
+              # Drop a leading "# v…" H1 so the Releases TOC does not list the
+              # version twice (title + body heading).
+              new_body="$(printf '%s\n' "${body}" | awk 'NR==1 && $0 ~ /^# v/ {next} {print}')"
+              # Title must equal the tag (drop a stale "Hiddify vX" prefix).
+              payload="$(jq -n --arg name "${tag}" --arg body "${new_body}" '{name:$name, body:$body}')"
+              echo "patching ${tag} (was name=${name})"
+              printf '%s' "${payload}" | gh api -X PATCH "repos/${repo}/releases/${id}" --input -
+            done

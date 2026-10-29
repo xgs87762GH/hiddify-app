@@ -26,10 +26,16 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           notes=".github/release_notes/${TAG}.md"
+          # Title must equal the tag. A "Hiddify $TAG" title plus a body H1 of
+          # "# $TAG" makes GitHub's Releases "On this page" list show both.
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "release $TAG already exists"
+            echo "release $TAG already exists — normalize title"
+            gh release edit "$TAG" --title "$TAG"
+            if [ -f "$notes" ]; then
+              gh release edit "$TAG" --notes-file "$notes"
+            fi
           elif [ -f "$notes" ]; then
-            gh release create "$TAG" --title "Hiddify $TAG" --notes-file "$notes"
+            gh release create "$TAG" --title "$TAG" --notes-file "$notes"
           else
-            gh release create "$TAG" --title "Hiddify $TAG" --generate-notes
+            gh release create "$TAG" --title "$TAG" --generate-notes
           fi

@@ -519,7 +519,9 @@ jobs:
           fi
   update-draft:
     permissions: write-all
-    if: ${{ inputs.upload-artifact }}
+    # Fork: do not publish a standing "draft" release. Upstream uses this as a
+    # rolling CI dump; here it clutters the Releases page next to real tags.
+    if: ${{ false }}
     needs: [build]
     runs-on: ubuntu-latest
     steps:
@@ -628,6 +630,7 @@ jobs:
           # releases with preRelease == false), so a real version must not be
           # published as one.
           prerelease: false
+          name: ${{ env.TAG_NAME }}
           tag_name: ${{ env.TAG_NAME }}
           body_path: './release.md'
           files: ./out/*
