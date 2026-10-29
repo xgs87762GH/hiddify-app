@@ -1,14 +1,13 @@
-// This is a generated file - do not edit.
 //
-// Generated from v2/hcore/hcore.proto.
-
-// @dart = 3.3
+//  Generated code. Do not modify.
+//  source: v2/hcore/hcore.proto
+//
+// @dart = 2.12
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names
-// ignore_for_file: curly_braces_in_flow_control_structures
-// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
-// ignore_for_file: non_constant_identifier_names, unused_import
+// ignore_for_file: constant_identifier_names, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_final_fields
+// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -23,13 +22,16 @@ const CoreStates$json = {
     {'1': 'STARTED', '2': 2},
     {'1': 'STOPPING', '2': 3},
     {'1': 'HOT_RELOADING', '2': 4},
+    {'1': 'WAITING', '2': 5},
+    {'1': 'NO_AVAILABLE_PROXIES', '2': 6},
   ],
 };
 
 /// Descriptor for `CoreStates`. Decode as a `google.protobuf.EnumDescriptorProto`.
 final $typed_data.Uint8List coreStatesDescriptor = $convert.base64Decode(
     'CgpDb3JlU3RhdGVzEgsKB1NUT1BQRUQQABIMCghTVEFSVElORxABEgsKB1NUQVJURUQQAhIMCg'
-    'hTVE9QUElORxADEhEKDUhPVF9SRUxPQURJTkcQBA==');
+    'hTVE9QUElORxADEhEKDUhPVF9SRUxPQURJTkcQBBILCgdXQUlUSU5HEAUSGAoUTk9fQVZBSUxB'
+    'QkxFX1BST1hJRVMQBg==');
 
 @$core.Deprecated('Use messageTypeDescriptor instead')
 const MessageType$json = {
@@ -114,26 +116,66 @@ const LogType$json = {
 final $typed_data.Uint8List logTypeDescriptor = $convert.base64Decode(
     'CgdMb2dUeXBlEggKBENPUkUQABILCgdTRVJWSUNFEAESCgoGQ09ORklHEAI=');
 
+@$core.Deprecated('Use adminPreferenceDescriptor instead')
+const AdminPreference$json = {
+  '1': 'AdminPreference',
+  '2': [
+    {'1': 'ADMIN_PREFERENCE_UNSET', '2': 0},
+    {'1': 'ADMIN_PREFERENCE_PREFER_ADMIN', '2': 1},
+    {'1': 'ADMIN_PREFERENCE_PREFER_NO_ADMIN', '2': 2},
+  ],
+};
+
+/// Descriptor for `AdminPreference`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List adminPreferenceDescriptor = $convert.base64Decode(
+    'Cg9BZG1pblByZWZlcmVuY2USGgoWQURNSU5fUFJFRkVSRU5DRV9VTlNFVBAAEiEKHUFETUlOX1'
+    'BSRUZFUkVOQ0VfUFJFRkVSX0FETUlOEAESJAogQURNSU5fUFJFRkVSRU5DRV9QUkVGRVJfTk9f'
+    'QURNSU4QAg==');
+
+@$core.Deprecated('Use adminBgServiceDecisionDescriptor instead')
+const AdminBgServiceDecision$json = {
+  '1': 'AdminBgServiceDecision',
+  '2': [
+    {'1': 'ADMIN_BG_SERVICE_NO', '2': 0},
+    {'1': 'ADMIN_BG_SERVICE_ALREADY_CONNECTED', '2': 1},
+    {'1': 'ADMIN_BG_SERVICE_NEEDS_ADMIN', '2': 2},
+    {'1': 'ADMIN_BG_SERVICE_OPTIONAL_PROXY_NEED_ADMIN', '2': 3},
+  ],
+};
+
+/// Descriptor for `AdminBgServiceDecision`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List adminBgServiceDecisionDescriptor = $convert.base64Decode(
+    'ChZBZG1pbkJnU2VydmljZURlY2lzaW9uEhcKE0FETUlOX0JHX1NFUlZJQ0VfTk8QABImCiJBRE'
+    '1JTl9CR19TRVJWSUNFX0FMUkVBRFlfQ09OTkVDVEVEEAESIAocQURNSU5fQkdfU0VSVklDRV9O'
+    'RUVEU19BRE1JThACEi4KKkFETUlOX0JHX1NFUlZJQ0VfT1BUSU9OQUxfUFJPWFlfTkVFRF9BRE'
+    '1JThAD');
+
+@$core.Deprecated('Use ensureAdminBgServiceProgressDescriptor instead')
+const EnsureAdminBgServiceProgress$json = {
+  '1': 'EnsureAdminBgServiceProgress',
+  '2': [
+    {'1': 'ENSURE_ADMIN_BG_WAITING_FOR_ELEVATION', '2': 0},
+    {'1': 'ENSURE_ADMIN_BG_SERVICE_STARTING', '2': 1},
+    {'1': 'ENSURE_ADMIN_BG_SERVICE_CONNECTED', '2': 2},
+    {'1': 'ENSURE_ADMIN_BG_FAILED_PERMISSION_DENIED', '2': 3},
+    {'1': 'ENSURE_ADMIN_BG_FAILED_OTHER', '2': 4},
+  ],
+};
+
+/// Descriptor for `EnsureAdminBgServiceProgress`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List ensureAdminBgServiceProgressDescriptor = $convert.base64Decode(
+    'ChxFbnN1cmVBZG1pbkJnU2VydmljZVByb2dyZXNzEikKJUVOU1VSRV9BRE1JTl9CR19XQUlUSU'
+    '5HX0ZPUl9FTEVWQVRJT04QABIkCiBFTlNVUkVfQURNSU5fQkdfU0VSVklDRV9TVEFSVElORxAB'
+    'EiUKIUVOU1VSRV9BRE1JTl9CR19TRVJWSUNFX0NPTk5FQ1RFRBACEiwKKEVOU1VSRV9BRE1JTl'
+    '9CR19GQUlMRURfUEVSTUlTU0lPTl9ERU5JRUQQAxIgChxFTlNVUkVfQURNSU5fQkdfRkFJTEVE'
+    'X09USEVSEAQ=');
+
 @$core.Deprecated('Use coreInfoResponseDescriptor instead')
 const CoreInfoResponse$json = {
   '1': 'CoreInfoResponse',
   '2': [
-    {
-      '1': 'core_state',
-      '3': 1,
-      '4': 1,
-      '5': 14,
-      '6': '.hcore.CoreStates',
-      '10': 'coreState'
-    },
-    {
-      '1': 'message_type',
-      '3': 2,
-      '4': 1,
-      '5': 14,
-      '6': '.hcore.MessageType',
-      '10': 'messageType'
-    },
+    {'1': 'core_state', '3': 1, '4': 1, '5': 14, '6': '.hcore.CoreStates', '10': 'coreState'},
+    {'1': 'message_type', '3': 2, '4': 1, '5': 14, '6': '.hcore.MessageType', '10': 'messageType'},
     {'1': 'message', '3': 3, '4': 1, '5': 9, '10': 'message'},
   ],
 };
@@ -150,21 +192,9 @@ const StartRequest$json = {
   '2': [
     {'1': 'config_path', '3': 1, '4': 1, '5': 9, '10': 'configPath'},
     {'1': 'config_content', '3': 2, '4': 1, '5': 9, '10': 'configContent'},
-    {
-      '1': 'disable_memory_limit',
-      '3': 3,
-      '4': 1,
-      '5': 8,
-      '10': 'disableMemoryLimit'
-    },
+    {'1': 'disable_memory_limit', '3': 3, '4': 1, '5': 8, '10': 'disableMemoryLimit'},
     {'1': 'delay_start', '3': 4, '4': 1, '5': 8, '10': 'delayStart'},
-    {
-      '1': 'enable_old_command_server',
-      '3': 5,
-      '4': 1,
-      '5': 8,
-      '10': 'enableOldCommandServer'
-    },
+    {'1': 'enable_old_command_server', '3': 5, '4': 1, '5': 8, '10': 'enableOldCommandServer'},
     {'1': 'enable_raw_config', '3': 6, '4': 1, '5': 8, '10': 'enableRawConfig'},
     {'1': 'config_name', '3': 7, '4': 1, '5': 9, '10': 'configName'},
   ],
@@ -183,14 +213,7 @@ final $typed_data.Uint8List startRequestDescriptor = $convert.base64Decode(
 const CloseRequest$json = {
   '1': 'CloseRequest',
   '2': [
-    {
-      '1': 'mode',
-      '3': 1,
-      '4': 1,
-      '5': 14,
-      '6': '.hcore.SetupMode',
-      '10': 'mode'
-    },
+    {'1': 'mode', '3': 1, '4': 1, '5': 14, '6': '.hcore.SetupMode', '10': 'mode'},
   ],
 };
 
@@ -205,24 +228,11 @@ const SetupRequest$json = {
     {'1': 'base_path', '3': 1, '4': 1, '5': 9, '10': 'basePath'},
     {'1': 'working_dir', '3': 2, '4': 1, '5': 9, '10': 'workingDir'},
     {'1': 'temp_dir', '3': 3, '4': 1, '5': 9, '10': 'tempDir'},
-    {
-      '1': 'flutter_status_port',
-      '3': 4,
-      '4': 1,
-      '5': 3,
-      '10': 'flutterStatusPort'
-    },
+    {'1': 'flutter_status_port', '3': 4, '4': 1, '5': 3, '10': 'flutterStatusPort'},
     {'1': 'listen', '3': 5, '4': 1, '5': 9, '10': 'listen'},
     {'1': 'secret', '3': 6, '4': 1, '5': 9, '10': 'secret'},
     {'1': 'debug', '3': 7, '4': 1, '5': 8, '10': 'debug'},
-    {
-      '1': 'mode',
-      '3': 8,
-      '4': 1,
-      '5': 14,
-      '6': '.hcore.SetupMode',
-      '10': 'mode'
-    },
+    {'1': 'mode', '3': 8, '4': 1, '5': 14, '6': '.hcore.SetupMode', '10': 'mode'},
     {'1': 'fix_android_stack', '3': 9, '4': 1, '5': 8, '10': 'fixAndroidStack'},
   ],
 };
@@ -244,13 +254,7 @@ const SystemInfo$json = {
     {'1': 'goroutines', '3': 2, '4': 1, '5': 5, '10': 'goroutines'},
     {'1': 'connections_in', '3': 3, '4': 1, '5': 5, '10': 'connectionsIn'},
     {'1': 'connections_out', '3': 4, '4': 1, '5': 5, '10': 'connectionsOut'},
-    {
-      '1': 'traffic_available',
-      '3': 5,
-      '4': 1,
-      '5': 8,
-      '10': 'trafficAvailable'
-    },
+    {'1': 'traffic_available', '3': 5, '4': 1, '5': 8, '10': 'trafficAvailable'},
     {'1': 'uplink', '3': 6, '4': 1, '5': 3, '10': 'uplink'},
     {'1': 'downlink', '3': 7, '4': 1, '5': 3, '10': 'downlink'},
     {'1': 'uplink_total', '3': 8, '4': 1, '5': 3, '10': 'uplinkTotal'},
@@ -277,45 +281,13 @@ const OutboundInfo$json = {
   '2': [
     {'1': 'tag', '3': 1, '4': 1, '5': 9, '10': 'tag'},
     {'1': 'type', '3': 2, '4': 1, '5': 9, '10': 'type'},
-    {
-      '1': 'url_test_time',
-      '3': 3,
-      '4': 1,
-      '5': 11,
-      '6': '.google.protobuf.Timestamp',
-      '10': 'urlTestTime'
-    },
+    {'1': 'url_test_time', '3': 3, '4': 1, '5': 11, '6': '.google.protobuf.Timestamp', '10': 'urlTestTime'},
     {'1': 'url_test_delay', '3': 4, '4': 1, '5': 5, '10': 'urlTestDelay'},
-    {
-      '1': 'ipinfo',
-      '3': 5,
-      '4': 1,
-      '5': 11,
-      '6': '.hcore.IpInfo',
-      '9': 0,
-      '10': 'ipinfo',
-      '17': true
-    },
+    {'1': 'ipinfo', '3': 5, '4': 1, '5': 11, '6': '.hcore.IpInfo', '9': 0, '10': 'ipinfo', '17': true},
     {'1': 'is_selected', '3': 6, '4': 1, '5': 8, '10': 'isSelected'},
     {'1': 'is_group', '3': 7, '4': 1, '5': 8, '10': 'isGroup'},
-    {
-      '1': 'group_selected_tag',
-      '3': 13,
-      '4': 1,
-      '5': 9,
-      '9': 1,
-      '10': 'groupSelectedTag',
-      '17': true
-    },
-    {
-      '1': 'group_selected_tag_display',
-      '3': 14,
-      '4': 1,
-      '5': 9,
-      '9': 2,
-      '10': 'groupSelectedTagDisplay',
-      '17': true
-    },
+    {'1': 'group_selected_tag', '3': 13, '4': 1, '5': 9, '9': 1, '10': 'groupSelectedTag', '17': true},
+    {'1': 'group_selected_tag_display', '3': 14, '4': 1, '5': 9, '9': 2, '10': 'groupSelectedTagDisplay', '17': true},
     {'1': 'is_secure', '3': 8, '4': 1, '5': 8, '10': 'isSecure'},
     {'1': 'is_visible', '3': 9, '4': 1, '5': 8, '10': 'isVisible'},
     {'1': 'port', '3': 10, '4': 1, '5': 13, '10': 'port'},
@@ -380,14 +352,7 @@ const OutboundGroup$json = {
     {'1': 'selected', '3': 3, '4': 1, '5': 9, '10': 'selected'},
     {'1': 'selectable', '3': 4, '4': 1, '5': 8, '10': 'selectable'},
     {'1': 'Is_expand', '3': 5, '4': 1, '5': 8, '10': 'IsExpand'},
-    {
-      '1': 'items',
-      '3': 6,
-      '4': 3,
-      '5': 11,
-      '6': '.hcore.OutboundInfo',
-      '10': 'items'
-    },
+    {'1': 'items', '3': 6, '4': 3, '5': 11, '6': '.hcore.OutboundInfo', '10': 'items'},
   ],
 };
 
@@ -402,14 +367,7 @@ final $typed_data.Uint8List outboundGroupDescriptor = $convert.base64Decode(
 const OutboundGroupList$json = {
   '1': 'OutboundGroupList',
   '2': [
-    {
-      '1': 'items',
-      '3': 1,
-      '4': 3,
-      '5': 11,
-      '6': '.hcore.OutboundGroup',
-      '10': 'items'
-    },
+    {'1': 'items', '3': 1, '4': 3, '5': 11, '6': '.hcore.OutboundGroup', '10': 'items'},
   ],
 };
 
@@ -437,20 +395,8 @@ const WarpWireguardConfig$json = {
   '1': 'WarpWireguardConfig',
   '2': [
     {'1': 'private_key', '3': 1, '4': 1, '5': 9, '10': 'private-key'},
-    {
-      '1': 'local_address_ipv4',
-      '3': 2,
-      '4': 1,
-      '5': 9,
-      '10': 'local-address-ipv4'
-    },
-    {
-      '1': 'local_address_ipv6',
-      '3': 3,
-      '4': 1,
-      '5': 9,
-      '10': 'local-address-ipv6'
-    },
+    {'1': 'local_address_ipv4', '3': 2, '4': 1, '5': 9, '10': 'local-address-ipv4'},
+    {'1': 'local_address_ipv6', '3': 3, '4': 1, '5': 9, '10': 'local-address-ipv6'},
     {'1': 'peer_public_key', '3': 4, '4': 1, '5': 9, '10': 'peer-public-key'},
     {'1': 'client_id', '3': 5, '4': 1, '5': 9, '10': 'client-id'},
   ],
@@ -468,23 +414,9 @@ final $typed_data.Uint8List warpWireguardConfigDescriptor = $convert.base64Decod
 const WarpGenerationResponse$json = {
   '1': 'WarpGenerationResponse',
   '2': [
-    {
-      '1': 'account',
-      '3': 1,
-      '4': 1,
-      '5': 11,
-      '6': '.hcore.WarpAccount',
-      '10': 'account'
-    },
+    {'1': 'account', '3': 1, '4': 1, '5': 11, '6': '.hcore.WarpAccount', '10': 'account'},
     {'1': 'log', '3': 2, '4': 1, '5': 9, '10': 'log'},
-    {
-      '1': 'config',
-      '3': 3,
-      '4': 1,
-      '5': 11,
-      '6': '.hcore.WarpWireguardConfig',
-      '10': 'config'
-    },
+    {'1': 'config', '3': 3, '4': 1, '5': 11, '6': '.hcore.WarpWireguardConfig', '10': 'config'},
   ],
 };
 
@@ -529,14 +461,7 @@ final $typed_data.Uint8List parseRequestDescriptor = $convert.base64Decode(
 const ParseResponse$json = {
   '1': 'ParseResponse',
   '2': [
-    {
-      '1': 'response_code',
-      '3': 1,
-      '4': 1,
-      '5': 14,
-      '6': '.hcommon.ResponseCode',
-      '10': 'responseCode'
-    },
+    {'1': 'response_code', '3': 1, '4': 1, '5': 14, '6': '.hcommon.ResponseCode', '10': 'responseCode'},
     {'1': 'content', '3': 2, '4': 1, '5': 9, '10': 'content'},
     {'1': 'message', '3': 3, '4': 1, '5': 9, '10': 'message'},
   ],
@@ -552,21 +477,14 @@ final $typed_data.Uint8List parseResponseDescriptor = $convert.base64Decode(
 const ChangeHiddifySettingsRequest$json = {
   '1': 'ChangeHiddifySettingsRequest',
   '2': [
-    {
-      '1': 'hiddify_settings_json',
-      '3': 1,
-      '4': 1,
-      '5': 9,
-      '10': 'hiddifySettingsJson'
-    },
+    {'1': 'hiddify_settings_json', '3': 1, '4': 1, '5': 9, '10': 'hiddifySettingsJson'},
   ],
 };
 
 /// Descriptor for `ChangeHiddifySettingsRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List changeHiddifySettingsRequestDescriptor =
-    $convert.base64Decode(
-        'ChxDaGFuZ2VIaWRkaWZ5U2V0dGluZ3NSZXF1ZXN0EjIKFWhpZGRpZnlfc2V0dGluZ3NfanNvbh'
-        'gBIAEoCVITaGlkZGlmeVNldHRpbmdzSnNvbg==');
+final $typed_data.Uint8List changeHiddifySettingsRequestDescriptor = $convert.base64Decode(
+    'ChxDaGFuZ2VIaWRkaWZ5U2V0dGluZ3NSZXF1ZXN0EjIKFWhpZGRpZnlfc2V0dGluZ3NfanNvbh'
+    'gBIAEoCVITaGlkZGlmeVNldHRpbmdzSnNvbg==');
 
 @$core.Deprecated('Use generateConfigRequestDescriptor instead')
 const GenerateConfigRequest$json = {
@@ -592,10 +510,9 @@ const GenerateConfigResponse$json = {
 };
 
 /// Descriptor for `GenerateConfigResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List generateConfigResponseDescriptor =
-    $convert.base64Decode(
-        'ChZHZW5lcmF0ZUNvbmZpZ1Jlc3BvbnNlEiUKDmNvbmZpZ19jb250ZW50GAEgASgJUg1jb25maW'
-        'dDb250ZW50');
+final $typed_data.Uint8List generateConfigResponseDescriptor = $convert.base64Decode(
+    'ChZHZW5lcmF0ZUNvbmZpZ1Jlc3BvbnNlEiUKDmNvbmZpZ19jb250ZW50GAEgASgJUg1jb25maW'
+    'dDb250ZW50');
 
 @$core.Deprecated('Use selectOutboundRequestDescriptor instead')
 const SelectOutboundRequest$json = {
@@ -620,8 +537,8 @@ const UrlTestRequest$json = {
 };
 
 /// Descriptor for `UrlTestRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List urlTestRequestDescriptor =
-    $convert.base64Decode('Cg5VcmxUZXN0UmVxdWVzdBIQCgN0YWcYASABKAlSA3RhZw==');
+final $typed_data.Uint8List urlTestRequestDescriptor = $convert.base64Decode(
+    'Cg5VcmxUZXN0UmVxdWVzdBIQCgN0YWcYASABKAlSA3RhZw==');
 
 @$core.Deprecated('Use generateWarpConfigRequestDescriptor instead')
 const GenerateWarpConfigRequest$json = {
@@ -648,33 +565,18 @@ const SetSystemProxyEnabledRequest$json = {
 };
 
 /// Descriptor for `SetSystemProxyEnabledRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List setSystemProxyEnabledRequestDescriptor =
-    $convert.base64Decode(
-        'ChxTZXRTeXN0ZW1Qcm94eUVuYWJsZWRSZXF1ZXN0Eh0KCmlzX2VuYWJsZWQYASABKAhSCWlzRW'
-        '5hYmxlZA==');
+final $typed_data.Uint8List setSystemProxyEnabledRequestDescriptor = $convert.base64Decode(
+    'ChxTZXRTeXN0ZW1Qcm94eUVuYWJsZWRSZXF1ZXN0Eh0KCmlzX2VuYWJsZWQYASABKAhSCWlzRW'
+    '5hYmxlZA==');
 
 @$core.Deprecated('Use logMessageDescriptor instead')
 const LogMessage$json = {
   '1': 'LogMessage',
   '2': [
-    {
-      '1': 'level',
-      '3': 1,
-      '4': 1,
-      '5': 14,
-      '6': '.hcore.LogLevel',
-      '10': 'level'
-    },
+    {'1': 'level', '3': 1, '4': 1, '5': 14, '6': '.hcore.LogLevel', '10': 'level'},
     {'1': 'type', '3': 2, '4': 1, '5': 14, '6': '.hcore.LogType', '10': 'type'},
     {'1': 'message', '3': 3, '4': 1, '5': 9, '10': 'message'},
-    {
-      '1': 'time',
-      '3': 4,
-      '4': 1,
-      '5': 11,
-      '6': '.google.protobuf.Timestamp',
-      '10': 'time'
-    },
+    {'1': 'time', '3': 4, '4': 1, '5': 11, '6': '.google.protobuf.Timestamp', '10': 'time'},
   ],
 };
 
@@ -688,14 +590,7 @@ final $typed_data.Uint8List logMessageDescriptor = $convert.base64Decode(
 const LogRequest$json = {
   '1': 'LogRequest',
   '2': [
-    {
-      '1': 'level',
-      '3': 1,
-      '4': 1,
-      '5': 14,
-      '6': '.hcore.LogLevel',
-      '10': 'level'
-    },
+    {'1': 'level', '3': 1, '4': 1, '5': 14, '6': '.hcore.LogLevel', '10': 'level'},
   ],
 };
 
@@ -709,8 +604,8 @@ const StopRequest$json = {
 };
 
 /// Descriptor for `StopRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List stopRequestDescriptor =
-    $convert.base64Decode('CgtTdG9wUmVxdWVzdA==');
+final $typed_data.Uint8List stopRequestDescriptor = $convert.base64Decode(
+    'CgtTdG9wUmVxdWVzdA==');
 
 @$core.Deprecated('Use lANIPResponseDescriptor instead')
 const LANIPResponse$json = {
@@ -721,5 +616,108 @@ const LANIPResponse$json = {
 };
 
 /// Descriptor for `LANIPResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List lANIPResponseDescriptor =
-    $convert.base64Decode('Cg1MQU5JUFJlc3BvbnNlEg4KAmlwGAEgASgJUgJpcA==');
+final $typed_data.Uint8List lANIPResponseDescriptor = $convert.base64Decode(
+    'Cg1MQU5JUFJlc3BvbnNlEg4KAmlwGAEgASgJUgJpcA==');
+
+@$core.Deprecated('Use adminNeededProxyDescriptor instead')
+const AdminNeededProxy$json = {
+  '1': 'AdminNeededProxy',
+  '2': [
+    {'1': 'tag', '3': 1, '4': 1, '5': 9, '10': 'tag'},
+    {'1': 'summary', '3': 2, '4': 1, '5': 9, '10': 'summary'},
+    {'1': 'detail', '3': 3, '4': 1, '5': 9, '10': 'detail'},
+  ],
+};
+
+/// Descriptor for `AdminNeededProxy`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminNeededProxyDescriptor = $convert.base64Decode(
+    'ChBBZG1pbk5lZWRlZFByb3h5EhAKA3RhZxgBIAEoCVIDdGFnEhgKB3N1bW1hcnkYAiABKAlSB3'
+    'N1bW1hcnkSFgoGZGV0YWlsGAMgASgJUgZkZXRhaWw=');
+
+@$core.Deprecated('Use needAdminBgServiceRequestDescriptor instead')
+const NeedAdminBgServiceRequest$json = {
+  '1': 'NeedAdminBgServiceRequest',
+  '2': [
+    {'1': 'service_mode', '3': 1, '4': 1, '5': 9, '10': 'serviceMode'},
+    {'1': 'hiddify_settings_json', '3': 2, '4': 1, '5': 9, '10': 'hiddifySettingsJson'},
+    {'1': 'admin_preference', '3': 3, '4': 1, '5': 14, '6': '.hcore.AdminPreference', '10': 'adminPreference'},
+    {'1': 'privilege_error_remembered', '3': 4, '4': 1, '5': 8, '10': 'privilegeErrorRemembered'},
+  ],
+};
+
+/// Descriptor for `NeedAdminBgServiceRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List needAdminBgServiceRequestDescriptor = $convert.base64Decode(
+    'ChlOZWVkQWRtaW5CZ1NlcnZpY2VSZXF1ZXN0EiEKDHNlcnZpY2VfbW9kZRgBIAEoCVILc2Vydm'
+    'ljZU1vZGUSMgoVaGlkZGlmeV9zZXR0aW5nc19qc29uGAIgASgJUhNoaWRkaWZ5U2V0dGluZ3NK'
+    'c29uEkEKEGFkbWluX3ByZWZlcmVuY2UYAyABKA4yFi5oY29yZS5BZG1pblByZWZlcmVuY2VSD2'
+    'FkbWluUHJlZmVyZW5jZRI8Chpwcml2aWxlZ2VfZXJyb3JfcmVtZW1iZXJlZBgEIAEoCFIYcHJp'
+    'dmlsZWdlRXJyb3JSZW1lbWJlcmVk');
+
+@$core.Deprecated('Use needAdminBgServiceResponseDescriptor instead')
+const NeedAdminBgServiceResponse$json = {
+  '1': 'NeedAdminBgServiceResponse',
+  '2': [
+    {'1': 'decision', '3': 1, '4': 1, '5': 14, '6': '.hcore.AdminBgServiceDecision', '10': 'decision'},
+    {'1': 'admin_needed_proxies', '3': 2, '4': 3, '5': 11, '6': '.hcore.AdminNeededProxy', '10': 'adminNeededProxies'},
+  ],
+};
+
+/// Descriptor for `NeedAdminBgServiceResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List needAdminBgServiceResponseDescriptor = $convert.base64Decode(
+    'ChpOZWVkQWRtaW5CZ1NlcnZpY2VSZXNwb25zZRI5CghkZWNpc2lvbhgBIAEoDjIdLmhjb3JlLk'
+    'FkbWluQmdTZXJ2aWNlRGVjaXNpb25SCGRlY2lzaW9uEkkKFGFkbWluX25lZWRlZF9wcm94aWVz'
+    'GAIgAygLMhcuaGNvcmUuQWRtaW5OZWVkZWRQcm94eVISYWRtaW5OZWVkZWRQcm94aWVz');
+
+@$core.Deprecated('Use ensureAdminBgServiceRequestDescriptor instead')
+const EnsureAdminBgServiceRequest$json = {
+  '1': 'EnsureAdminBgServiceRequest',
+  '2': [
+    {'1': 'config_content', '3': 1, '4': 1, '5': 9, '10': 'configContent'},
+    {'1': 'config_name', '3': 2, '4': 1, '5': 9, '10': 'configName'},
+    {'1': 'settings_json', '3': 3, '4': 1, '5': 9, '10': 'settingsJson'},
+    {'1': 'resources', '3': 4, '4': 3, '5': 11, '6': '.hcore.EnsureAdminBgServiceRequest.ResourcesEntry', '10': 'resources'},
+    {'1': 'disable_memory_limit', '3': 5, '4': 1, '5': 8, '10': 'disableMemoryLimit'},
+    {'1': 'owner_pid', '3': 6, '4': 1, '5': 5, '10': 'ownerPid'},
+    {'1': 'cli_path', '3': 7, '4': 1, '5': 9, '10': 'cliPath'},
+    {'1': 'owner_user', '3': 8, '4': 1, '5': 9, '10': 'ownerUser'},
+  ],
+  '3': [EnsureAdminBgServiceRequest_ResourcesEntry$json],
+};
+
+@$core.Deprecated('Use ensureAdminBgServiceRequestDescriptor instead')
+const EnsureAdminBgServiceRequest_ResourcesEntry$json = {
+  '1': 'ResourcesEntry',
+  '2': [
+    {'1': 'key', '3': 1, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'value', '3': 2, '4': 1, '5': 12, '10': 'value'},
+  ],
+  '7': {'7': true},
+};
+
+/// Descriptor for `EnsureAdminBgServiceRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List ensureAdminBgServiceRequestDescriptor = $convert.base64Decode(
+    'ChtFbnN1cmVBZG1pbkJnU2VydmljZVJlcXVlc3QSJQoOY29uZmlnX2NvbnRlbnQYASABKAlSDW'
+    'NvbmZpZ0NvbnRlbnQSHwoLY29uZmlnX25hbWUYAiABKAlSCmNvbmZpZ05hbWUSIwoNc2V0dGlu'
+    'Z3NfanNvbhgDIAEoCVIMc2V0dGluZ3NKc29uEk8KCXJlc291cmNlcxgEIAMoCzIxLmhjb3JlLk'
+    'Vuc3VyZUFkbWluQmdTZXJ2aWNlUmVxdWVzdC5SZXNvdXJjZXNFbnRyeVIJcmVzb3VyY2VzEjAK'
+    'FGRpc2FibGVfbWVtb3J5X2xpbWl0GAUgASgIUhJkaXNhYmxlTWVtb3J5TGltaXQSGwoJb3duZX'
+    'JfcGlkGAYgASgFUghvd25lclBpZBIZCghjbGlfcGF0aBgHIAEoCVIHY2xpUGF0aBIdCgpvd25l'
+    'cl91c2VyGAggASgJUglvd25lclVzZXIaPAoOUmVzb3VyY2VzRW50cnkSEAoDa2V5GAEgASgJUg'
+    'NrZXkSFAoFdmFsdWUYAiABKAxSBXZhbHVlOgI4AQ==');
+
+@$core.Deprecated('Use ensureAdminBgServiceEventDescriptor instead')
+const EnsureAdminBgServiceEvent$json = {
+  '1': 'EnsureAdminBgServiceEvent',
+  '2': [
+    {'1': 'progress', '3': 1, '4': 1, '5': 14, '6': '.hcore.EnsureAdminBgServiceProgress', '10': 'progress'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'service_port', '3': 3, '4': 1, '5': 13, '10': 'servicePort'},
+  ],
+};
+
+/// Descriptor for `EnsureAdminBgServiceEvent`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List ensureAdminBgServiceEventDescriptor = $convert.base64Decode(
+    'ChlFbnN1cmVBZG1pbkJnU2VydmljZUV2ZW50Ej8KCHByb2dyZXNzGAEgASgOMiMuaGNvcmUuRW'
+    '5zdXJlQWRtaW5CZ1NlcnZpY2VQcm9ncmVzc1IIcHJvZ3Jlc3MSGAoHbWVzc2FnZRgCIAEoCVIH'
+    'bWVzc2FnZRIhCgxzZXJ2aWNlX3BvcnQYAyABKA1SC3NlcnZpY2VQb3J0');
+

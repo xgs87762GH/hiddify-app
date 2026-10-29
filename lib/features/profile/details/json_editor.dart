@@ -231,6 +231,10 @@ const Map<String, Map<String, Map<String, dynamic>>> exampleSchemaValues = {
     },
   },
   "config.outbounds": {
+    "tls fragment (dialer)": {
+      "tcp_fast_open": false,
+      "tls_fragment": {"enabled": true, "size": "1-10", "sleep": "1-10"},
+    },
     "multiplex": {
       "multiplex": {
         "enabled": true,

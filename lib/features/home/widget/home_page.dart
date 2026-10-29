@@ -52,6 +52,30 @@ class HomePage extends HookConsumerWidget {
       ),
       body: DecoratedBox(
         decoration: BoxDecoration(
+          // A sky behind the connect button, as at an eclipse: in dark mode a touch lighter round
+          // the button, fading to the theme's own dark; in light mode brightest there, a touch
+          // darker towards the edges. Both barely there, centred on where the button sits.
+          gradient: theme.brightness == Brightness.dark
+              ? RadialGradient(
+                  center: const Alignment(0, -.15),
+                  radius: .85,
+                  colors: [
+                    Colors.white.withValues(alpha: .045),
+                    Colors.white.withValues(alpha: .015),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                  stops: const [0, .45, 1],
+                )
+              : RadialGradient(
+                  center: const Alignment(0, -.15),
+                  radius: 1.1,
+                  colors: [
+                    Colors.white.withValues(alpha: .55),
+                    Colors.white.withValues(alpha: 0),
+                    Colors.black.withValues(alpha: .045),
+                  ],
+                  stops: const [0, .5, 1],
+                ),
           image: DecorationImage(
             image: const AssetImage('assets/images/world_map.png'), // Replace with your image path
             fit: BoxFit.cover,

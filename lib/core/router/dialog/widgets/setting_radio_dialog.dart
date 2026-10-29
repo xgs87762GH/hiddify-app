@@ -38,9 +38,7 @@ class SettingRadioDialog<T> extends ConsumerWidget {
             onChanged: (selected) => context.pop(selected),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: values
-                  .map((e) => RadioListTile<T>(title: Text(textWithTranslation(e)), value: e))
-                  .toList(),
+              children: values.map((e) => RadioListTile<T>(title: Text(textWithTranslation(e)), value: e)).toList(),
             ),
           ),
         ),

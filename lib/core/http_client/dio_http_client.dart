@@ -24,6 +24,24 @@ class DioHttpClient with InfraLogger {
           headers: {"User-Agent": userAgent},
         ),
       );
+      // First, so the retries of a request carry it too: no request leaves with the user agent of
+      // dart:io ("Dart/3.x (dart:io)"). Servers tell a sing-box client from a browser by it and
+      // answer with what that client can parse; a Dart one gets a config meant for something else.
+      _dio[mode]!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            final current = options.headers.entries
+                .where((header) => header.key.toLowerCase() == 'user-agent')
+                .map((header) => header.value?.toString() ?? '')
+                .firstOrNull;
+            if (current == null || current.trim().isEmpty || current.startsWith('Dart')) {
+              options.headers.removeWhere((key, _) => key.toLowerCase() == 'user-agent');
+              options.headers['User-Agent'] = userAgent;
+            }
+            handler.next(options);
+          },
+        ),
+      );
       _dio[mode]!.interceptors.add(
         RetryInterceptor(
           dio: _dio[mode]!,
@@ -36,7 +54,8 @@ class DioHttpClient with InfraLogger {
 
       _dio[mode]!.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () => _clients.putIfAbsent(mode, () {
-          final client = HttpClient();
+          // what dart:io sends when a request has no user agent of its own
+          final client = HttpClient()..userAgent = userAgent;
           // Read the port lazily: it is only known once the core is up.
           client.findProxy = (url) {
             if (mode == "proxy") {
@@ -130,7 +149,7 @@ class DioHttpClient with InfraLogger {
     return Options(
       responseType: responseType,
       headers: {
-        if (userAgent != null) "User-Agent": userAgent,
+        "User-Agent": userAgent ?? this.userAgent,
         if (basicAuth != null) "authorization": basicAuth,
         // "Accept": "application/json",
         // "Content-Type": "application/json",

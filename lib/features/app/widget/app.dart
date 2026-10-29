@@ -160,10 +160,18 @@ class App extends HookConsumerWidget with WidgetsBindingObserver, PresLogger {
     useEffect(() {
       // The engine calls the listener directly, so a pause is seen even when no frame is drawn in the
       // background. Inactive (a dialog, the notification shade) is not a pause and closes nothing.
+      // On desktop a window losing focus is inactive too, so coming back from inactive alone sets
+      // nothing up again: doing it on every focus change reconnected to the core, reloaded what
+      // watches it, and made the home page blink.
+      var away = true;
       void handle(AppLifecycleState state) {
         loggy.info("app state: $state");
+        if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused) away = true;
         if (state == AppLifecycleState.paused) onPause(ref);
-        if (state == AppLifecycleState.resumed) onResume(ref);
+        if (state == AppLifecycleState.resumed && away) {
+          away = false;
+          onResume(ref);
+        }
       }
 
       final initial = WidgetsBinding.instance.lifecycleState;
