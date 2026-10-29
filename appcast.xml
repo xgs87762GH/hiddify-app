@@ -17,23 +17,23 @@
     <description>Hiddify releases</description>
     <language>en</language>
     <item>
-      <title>Version 5.0.7</title>
-      <pubDate>Wed, 28 Oct 2026 17:20:00 +0800</pubDate>
+      <title>Version 5.0.8</title>
+      <pubDate>Thu, 29 Oct 2026 10:00:00 +0800</pubDate>
       <description><![CDATA[
         <ul>
-          <li>修复「稍后」后更新弹窗立刻再弹的问题。</li>
-          <li>退出时断开代理改为 5 秒超时并吞掉异常，避免卡死或残留系统代理。</li>
-          <li>更新说明清洗 HTML/徽章噪声；「稍后」写入失败时只记日志不卡界面。</li>
+          <li>同步上游 main：连接状态 / 桌面托盘 / 核心 API 等一批更新。</li>
+          <li>合并后修复编译与测试：连接中断判定、托盘状态穷尽、主页按钮与 Windows VPN 路径。</li>
+          <li><code>flutter analyze</code> 无 error；全量 <code>flutter test</code> 298 通过。</li>
         </ul>
       ]]></description>
       <sparkle:releaseNotesLink>
-        https://github.com/xgs87762GH/hiddify-app/releases/tag/v5.0.7
+        https://github.com/xgs87762GH/hiddify-app/releases/tag/v5.0.8
       </sparkle:releaseNotesLink>
       <enclosure
-        url="https://github.com/xgs87762GH/hiddify-app/releases/download/v5.0.7/Hiddify-Windows-Setup-x64.exe"
+        url="https://github.com/xgs87762GH/hiddify-app/releases/download/v5.0.8/Hiddify-Windows-Setup-x64.exe"
         length="0"
         type="application/octet-stream"
-        sparkle:version="5.0.7" />
+        sparkle:version="5.0.8" />
     </item>
   </channel>
 </rss>
