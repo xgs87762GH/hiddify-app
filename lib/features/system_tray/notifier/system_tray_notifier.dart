@@ -79,8 +79,9 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
         label: switch (connection) {
           Disconnected() => t.connection.connect,
           Connecting() => t.connection.connecting,
-          Connected() => t.connection.disconnect,
+          Connected() || Waiting() || NoAvailableProxies() => t.connection.disconnect,
           Disconnecting() => t.connection.disconnecting,
+          HotReloading() => t.connection.hotReloading,
         },
         disabled: connection.isSwitching,
       ),
@@ -108,7 +109,10 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
       case Connected():
         return isWindows ? images.trayIconConnectedIco : images.trayIconConnectedPng.path;
       case Connecting():
+      case Waiting():
+      case NoAvailableProxies():
       case Disconnecting():
+      case HotReloading():
         return isWindows ? images.trayIconDisconnectedIco : images.trayIconDisconnectedPng.path;
       case Disconnected():
         return isWindows

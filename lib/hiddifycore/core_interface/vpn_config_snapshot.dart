@@ -29,7 +29,13 @@ Future<(String, Map<String, Uint8List>)> snapshotVpnConfiguration(String path, D
             }.contains(key) ||
             (key == 'path' && (value['type'] == 'local' || parent == 'geoip' || parent == 'geosite'));
         if (isFile && item is String && item.isNotEmpty) {
-          final source = File(p.isAbsolute(item) ? item : p.join(workingDirectory.path, item));
+          // Profile JSON uses POSIX separators; join on the host OS so missing-file
+          // errors and reads use a real local path (Windows would otherwise keep `/`).
+          final source = File(
+            p.isAbsolute(item)
+                ? item
+                : p.joinAll([workingDirectory.path, ...p.posix.split(item)]),
+          );
           final bytes = await source.readAsBytes();
           totalBytes += bytes.length;
           if (totalBytes > 32 * 1024 * 1024) {

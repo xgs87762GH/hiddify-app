@@ -555,10 +555,11 @@ class HiddifyCoreService with InfraLogger {
   Future<void> startListeningStatus(String key, CoreClient cc) async {
     if (core.managedStatus != null) {
       if (subscriptions.containsKey('managedStatus')) return;
-      subscriptions['managedStatus'] = core.managedStatus!.listen((status) {
+      subscriptions['managedStatus'] = core.managedStatus!.listen((platformStatus) {
         final wasStarted = _platformStatus is CoreStarted;
-        _platformStatus = status;
-        if (status is CoreStarted) {
+        _platformStatus = platformStatus;
+        final CoreStatus status;
+        if (platformStatus is CoreStarted) {
           // The platform knows only that its service is up; the core is starting until it says
           // otherwise, then waiting for a ping, and so on. The core reports a state when it
           // changes, so a stream that was open across a gap in the platform's status (the app
@@ -570,6 +571,7 @@ class HiddifyCoreService with InfraLogger {
         } else {
           _coreReported = null;
           _stopFollowingCore();
+          status = platformStatus;
         }
         statusController.add(currentState = status);
       });
@@ -782,5 +784,15 @@ class HiddifyCoreService with InfraLogger {
         return left(e.toString());
       }
     });
+  }
+
+  /// True when the error is the gRPC channel closing (resume, stop, process exit),
+  /// not a real RPC failure worth surfacing as a list/load error.
+  static bool isConnectionTerminated(Object error) {
+    if (error is! GrpcError) return false;
+    if (error.code == StatusCode.unavailable) return true;
+    if (error.code != StatusCode.unknown && error.code != StatusCode.cancelled) return false;
+    final message = error.message ?? "";
+    return message.isEmpty || message.contains("HTTP/2") || message.contains("Connection");
   }
 }

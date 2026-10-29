@@ -284,8 +284,6 @@ class SingleCall {
     _started = null;
   }
 
-  bool get isRunning => _running;
-
   Future<T> run<T>(Future<T> Function() task, {required T onIgnored}) async {
     if (_running) return onIgnored;
 
