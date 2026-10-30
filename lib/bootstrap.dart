@@ -117,7 +117,8 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
       // phase 3 — a log file is worth its cost on desktop, or while debugging.
       // On a phone in release it only burns storage nobody reads.
       _init("logging", () async => logFinish(keepFile: debug || PlatformUtils.isDesktop)),
-      _init("auto start service", () => container.read(autoStartNotifierProvider.future)),
+      // Non-critical: a missing Run registry key must not block runApp (blank window).
+      _safeInit("auto start service", () => container.read(autoStartNotifierProvider.future)),
     ).wait;
   } else {
     await _init("logging", () async => logFinish(keepFile: debug || PlatformUtils.isDesktop));

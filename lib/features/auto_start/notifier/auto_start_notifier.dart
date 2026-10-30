@@ -21,11 +21,23 @@ class AutoStartNotifier extends _$AutoStartNotifier with InfraLogger {
       appPath: Platform.resolvedExecutable,
       packageName: "Hiddify.HiddifyNext",
     );
-    final isEnabled = await launchAtStartup.isEnabled();
+    // Missing HKCU\...\Run (fresh Windows) or a failed registry open must not
+    // abort bootstrap: treat any read failure as "disabled" so runApp still runs.
+    final isEnabled = await _isEnabledSafe();
     loggy.info("auto start is [${isEnabled ? "Enabled" : "Disabled"}]");
     _startTimer();
     ref.onDispose(() => _timer?.cancel());
     return isEnabled;
+  }
+
+  /// [launchAtStartup.isEnabled] opens the Run key without handling absence.
+  Future<bool> _isEnabledSafe() async {
+    try {
+      return await launchAtStartup.isEnabled();
+    } catch (e, st) {
+      loggy.warning("auto start status unavailable; treating as disabled", e, st);
+      return false;
+    }
   }
 
   void _startTimer() {
@@ -35,7 +47,7 @@ class AutoStartNotifier extends _$AutoStartNotifier with InfraLogger {
 
   Future<bool> updateStatus() async {
     loggy.debug("update auto start status");
-    final isEnabled = await launchAtStartup.isEnabled();
+    final isEnabled = await _isEnabledSafe();
     state = AsyncValue.data(isEnabled);
     return isEnabled;
   }
