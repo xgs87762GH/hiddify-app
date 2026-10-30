@@ -165,17 +165,18 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
   }
 
   Future<void> exit() async {
-    // Wait for the connection to fully tear down. The core restores the system
-    // proxy settings while disconnecting, so the window/process must not be
-    // destroyed until that finishes - the old 2s timeout could kill it mid
-    // cleanup and leave the system proxy enabled after quit.
+    // Wait for the core to fully tear down. It restores the system proxy while
+    // stopping, so the window/process must not be destroyed until that finishes.
+    // Stop unconditionally: when the UI already shows Disconnected but a proxy
+    // was left enabled by an earlier abnormal exit, the status-gated abort would
+    // skip cleanup and the stale proxy would survive the quit.
     try {
       await ref
           .read(connectionNotifierProvider.notifier)
-          .abortConnection()
+          .forceStop()
           .timeout(const Duration(seconds: 5));
     } catch (e) {
-      loggy.warning("error aborting connection on quit", e);
+      loggy.warning("error stopping core on quit", e);
     }
     await trayManager.destroy();
     await windowManager.destroy();

@@ -173,6 +173,17 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
     }
   }
 
+  /// Stops the core regardless of the current status. Used on quit so a system
+  /// proxy left enabled by an earlier abnormal exit is cleared even when the UI
+  /// already reports Disconnected.
+  Future<void> forceStop() async {
+    try {
+      await _disconnect();
+    } catch (e) {
+      loggy.warning("force stop failed", e);
+    }
+  }
+
   final _singleStart = SingleCall();
 
   /// Bumped on disconnect / stuck-retry so a superseded in-flight connect cannot overwrite UI.
